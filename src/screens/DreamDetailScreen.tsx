@@ -33,7 +33,7 @@ const PERSPECTIVES: { key: Perspective; label: string; emoji: string }[] = [
     { key: 'life', label: 'Life', emoji: '🌱' },
     { key: 'work', label: 'Work', emoji: '💼' },
     { key: 'relationship', label: 'Relationship', emoji: '💞' },
-    { key: 'emotion', label: 'Emotion', emoji: '🧠' },
+    { key: 'emotion', label: 'Emotion', emoji: '💭' },
     { key: 'spiritual', label: 'Spiritual', emoji: '✨' },
 ];
 
