@@ -1,226 +1,292 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   Image,
-  Dimensions,
   TouchableOpacity,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { GlassCard } from '../components/GlassCard';
 import { FloatingParticles } from '../components/FloatingParticles';
 import { colors, spacing, typography, borderRadius } from '../theme';
+import { RootStackParamList } from '../navigation/types';
 
-const { width } = Dimensions.get('window');
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const getGreeting = () => {
+  const h = new Date().getHours();
+  if (h < 5) return { text: 'Good Night', emoji: '🌌' };
+  if (h < 12) return { text: 'Good Morning', emoji: '🌅' };
+  if (h < 18) return { text: 'Good Afternoon', emoji: '☀️' };
+  return { text: 'Good Evening', emoji: '🌙' };
+};
 
-const DREAM_IMG = 'https://images.unsplash.com/photo-1518241353330-0f7941c2d9b5?w=600&h=300&fit=crop';
+const formatDate = () =>
+  new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
 
+// ─── Mock data ─────────────────────────────────────────────────────────────────
+const LAST_DREAM = {
+  id: 'last',
+  title: 'Fireflies in the Misty Forest',
+  snippet: 'Walking through a misty forest with glowing fireflies. The trees whispered ancient melodies as moonlight filtered through the canopy...',
+  time: '6h ago',
+  mood: '😌',
+  moodLabel: 'Peaceful',
+  tags: ['Forest', 'Nature', 'Fireflies'],
+  image: 'https://images.unsplash.com/photo-1518241353330-0f7941c2d9b5?w=600&h=300&fit=crop',
+};
+
+const MOOD_TREND = [
+  { day: '7', emoji: '😌', color: '#7ec8a0', label: 'Peaceful' },
+  { day: '5', emoji: '😊', color: '#6dbf9e', label: 'Happy' },
+  { day: '4', emoji: '😰', color: '#e07777', label: 'Anxious' },
+  { day: '2', emoji: '😌', color: '#7ec8a0', label: 'Peaceful' },
+  { day: '1', emoji: '😢', color: '#7da8c8', label: 'Sad' },
+  { day: '28', emoji: '😊', color: '#6dbf9e', label: 'Happy' },
+  { day: '26', emoji: '😴', color: '#9b7ec8', label: 'Calm' },
+];
+
+const DAILY_REFLECTION = [
+  "What stayed with you when you woke up?",
+  "Was there a moment in your dream that felt too real?",
+  "What emotion from your dream is still sitting in your chest?",
+  "If you could re-enter last night's dream, what would you change?",
+  "What would you say to your dream-self if you could?",
+  "What does your dream say about what you want right now?",
+  "Who showed up in your dream that surprised you?",
+];
+
+const SUGGESTIONS = [
+  { icon: '🧘', label: 'Wind Down', text: 'Try 5 min of deep breathing before bed for more vivid dreams.' },
+  { icon: '📖', label: 'Read', text: 'Reading fiction before sleep tends to produce more narrative-rich dreams.' },
+  { icon: '🌿', label: 'Scent', text: 'Lavender on your pillow can improve REM depth and dream recall.' },
+  { icon: '🎵', label: 'Sounds', text: 'Ambient sounds during sleep may weave themselves into your dreamscape.' },
+];
+
+const DREAM_STATS = {
+  thisMonth: 14,
+  topMoodEmoji: '😌',
+  topMoodLabel: 'Peaceful',
+  topTagEmoji: '🌿',
+  topTagLabel: 'Nature',
+  avgPerWeek: 3.5,
+};
+
+// ─── Component ────────────────────────────────────────────────────────────────
 export const HomeScreen: React.FC = () => {
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const greeting = useMemo(getGreeting, []);
+  const dateStr = useMemo(formatDate, []);
+  const reflection = useMemo(() => DAILY_REFLECTION[new Date().getDate() % DAILY_REFLECTION.length], []);
+
   return (
     <View style={styles.container}>
       <FloatingParticles />
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false}>
+
+        {/* ── Header ── */}
         <View style={styles.header}>
-          <Text style={styles.greeting}>Good Evening</Text>
-          <Text style={styles.date}>Monday, Feb 10</Text>
+          <Text style={styles.greeting}>{greeting.emoji}  {greeting.text}</Text>
+          <Text style={styles.date}>{dateStr}</Text>
         </View>
 
-        {/* Last Night's Dream */}
-        <GlassCard style={styles.dreamCard}>
-          <Image source={{ uri: DREAM_IMG }} style={styles.dreamImage} resizeMode="cover" />
-          <View style={styles.aiTag}><Text style={styles.aiTagText}>AI Generated</Text></View>
-          <Text style={styles.dreamTitle}>Last Night's Dream</Text>
-          <Text style={styles.dreamSnippet}>
-            Walking through a misty forest with glowing fireflies. The trees whispered ancient melodies as moonlight filtered through the canopy...
-          </Text>
-          <View style={styles.dreamMeta}>
-            <Text style={styles.dreamTime}>3h 24m ago</Text>
-            <View style={styles.moodBadge}><Text style={styles.moodText}>Peaceful</Text></View>
-          </View>
-          <View style={styles.tagRow}>
-            {['Forest', 'Nature', 'Fireflies'].map((t, i) => (
-              <View key={i} style={styles.miniTag}><Text style={styles.miniTagText}>{t}</Text></View>
-            ))}
-          </View>
-        </GlassCard>
-
-        {/* AI Dream Interpretation */}
+        {/* ── Last Dream (tappable) ── */}
+        <TouchableOpacity activeOpacity={0.9} onPress={() => navigation.navigate('DreamDetail', { dreamId: LAST_DREAM.id })}>
+          <GlassCard style={styles.dreamCard}>
+            <View style={styles.dreamImageWrap}>
+              <Image source={{ uri: LAST_DREAM.image }} style={styles.dreamImage} resizeMode="cover" />
+            </View>
+            <View style={styles.dreamBody}>
+              <Text style={styles.dreamTitle}>{LAST_DREAM.title}</Text>
+              <Text style={styles.dreamSnippet} numberOfLines={2}>{LAST_DREAM.snippet}</Text>
+              <View style={styles.dreamMeta}>
+                <Text style={styles.dreamTime}>🕐 {LAST_DREAM.time}</Text>
+                <View style={styles.moodBadge}>
+                  <Text style={styles.moodText}>{LAST_DREAM.mood} {LAST_DREAM.moodLabel}</Text>
+                </View>
+              </View>
+              <View style={styles.tagRow}>
+                {LAST_DREAM.tags.map(t => (
+                  <View key={t} style={styles.miniTag}><Text style={styles.miniTagText}>{t}</Text></View>
+                ))}
+                <Text style={styles.tapHint}>Tap to view →</Text>
+              </View>
+            </View>
+          </GlassCard>
+        </TouchableOpacity>
+        {/* ── Dream Stats — 2×2 grid ── */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>AI Dream Interpretation</Text>
-          <GlassCard style={styles.insightCard}>
-            <View style={styles.aiHeader}>
-              <Text style={{ fontSize: 20 }}>🔮</Text>
-              <Text style={styles.aiLabel}>EchoMind AI</Text>
+          <Text style={styles.sectionTitle}>Dream Stats</Text>
+          <GlassCard style={styles.statsCard}>
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Text style={styles.statBigValue}>{DREAM_STATS.thisMonth}</Text>
+                <Text style={styles.statLabel}>Dreams this month</Text>
+              </View>
+              <View style={styles.statDividerV} />
+              <View style={styles.statItem}>
+                <Text style={styles.statBigValue}>{DREAM_STATS.avgPerWeek}</Text>
+                <Text style={styles.statLabel}>Avg per week</Text>
+              </View>
             </View>
+            <View style={styles.statDividerH} />
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Text style={styles.statEmoji}>{DREAM_STATS.topMoodEmoji}</Text>
+                <Text style={styles.statMoodValue}>{DREAM_STATS.topMoodLabel}</Text>
+                <Text style={styles.statLabel}>Top mood</Text>
+              </View>
+              <View style={styles.statDividerV} />
+              <View style={styles.statItem}>
+                <Text style={styles.statEmoji}>{DREAM_STATS.topTagEmoji}</Text>
+                <Text style={styles.statMoodValue}>{DREAM_STATS.topTagLabel}</Text>
+                <Text style={styles.statLabel}>Most common theme</Text>
+              </View>
+            </View>
+          </GlassCard>
+        </View>
+        {/* ── AI Insight (based on all dreams) ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>AI Insight for Today</Text>
+          <GlassCard>
+            <Text style={styles.aiLabel}>EchoMind AI · Based on all your dreams</Text>
             <Text style={styles.insightText}>
-              Your forest dream reflects a deep desire for inner peace and reconnection with nature. The fireflies symbolize small moments of clarity guiding you through uncertainty.
+              Across your recorded dreams, nature and open spaces appear frequently — suggesting a recurring need for freedom and mental space. Lately, peaceful moods dominate, but the occasional anxious dream hints at unresolved pressure. Today, lean into the calm and give yourself permission to slow down.
             </Text>
-            <Text style={styles.symbolTitle}>Key Symbols</Text>
             <View style={styles.symbolRow}>
-              <View style={styles.symbolChip}><Text style={styles.symbolText}>🌲 Forest = Inner Journey</Text></View>
-              <View style={styles.symbolChip}><Text style={styles.symbolText}>✨ Fireflies = Hope</Text></View>
-            </View>
-            <View style={styles.symbolRow}>
-              <View style={styles.symbolChip}><Text style={styles.symbolText}>🌙 Moon = Intuition</Text></View>
+              {[
+                { icon: '🌲', text: 'Nature = Freedom' },
+                { icon: '✨', text: 'Light = Clarity' },
+                { icon: '🌊', text: 'Water = Emotion' },
+              ].map((s, i) => (
+                <View key={i} style={styles.symbolChip}>
+                  <Text style={styles.symbolText}>{s.icon} {s.text}</Text>
+                </View>
+              ))}
             </View>
           </GlassCard>
         </View>
 
-        {/* Today's Suggestions */}
+        {/* ── Daily Reflection ── */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Today's Suggestions</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {[
-              { icon: '💚', label: 'Mood', value: 'Calm & Reflective', detail: 'Based on your dream' },
-              { icon: '👕', label: 'Style', value: 'Soft Greens', detail: 'Match dream energy' },
-              { icon: '🧘', label: 'Wellness', value: 'Forest Walk', detail: '15 min meditation' },
-              { icon: '🍵', label: 'Health', value: 'Chamomile Tea', detail: 'Better sleep tonight' },
-            ].map((s, i) => (
+          <Text style={styles.sectionTitle}>Today's Reflection</Text>
+          <GlassCard>
+            <Text style={styles.reflectionText}>"{reflection}"</Text>
+            <Text style={styles.reflectionHint}>Take a moment to sit with this.</Text>
+          </GlassCard>
+        </View>
+
+        {/* ── Mood Trend ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Recent Dream Moods</Text>
+          <GlassCard>
+            <Text style={styles.trendSubtitle}>Last 7 recorded dreams</Text>
+            <View style={styles.trendRow}>
+              {MOOD_TREND.map((m, i) => (
+                <View key={i} style={styles.trendItem}>
+                  <Text style={styles.trendEmoji}>{m.emoji}</Text>
+                  <View style={[styles.trendBar, { backgroundColor: m.color }]} />
+                  <Text style={styles.trendDay}>{m.day}</Text>
+                </View>
+              ))}
+            </View>
+            <View style={styles.trendLegend}>
+              {[...new Map(MOOD_TREND.map(m => [m.label, m])).values()].map((m, i) => (
+                <View key={i} style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: m.color }]} />
+                  <Text style={styles.legendText}>{m.label}</Text>
+                </View>
+              ))}
+            </View>
+          </GlassCard>
+        </View>
+
+        {/* ── Dream Wellbeing Tips ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Dream Wellbeing Tips</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.suggestionsRow}>
+            {SUGGESTIONS.map((s, i) => (
               <GlassCard key={i} style={styles.suggestionCard}>
                 <Text style={styles.suggestionIcon}>{s.icon}</Text>
                 <Text style={styles.suggestionLabel}>{s.label}</Text>
-                <Text style={styles.suggestionValue}>{s.value}</Text>
-                <Text style={styles.suggestionDetail}>{s.detail}</Text>
+                <Text style={styles.suggestionText}>{s.text}</Text>
               </GlassCard>
             ))}
           </ScrollView>
         </View>
 
-        {/* Sleep Quality */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Sleep Quality</Text>
-          <GlassCard style={styles.sleepCard}>
-            <View style={styles.sleepScoreRow}>
-              <View style={styles.sleepScoreCircle}>
-                <Text style={styles.sleepScoreValue}>85</Text>
-                <Text style={styles.sleepScoreUnit}>%</Text>
-              </View>
-              <View style={{ marginLeft: spacing.md }}>
-                <Text style={styles.sleepScoreLabel}>Sleep Score</Text>
-                <Text style={styles.sleepScoreDesc}>Great quality!</Text>
-              </View>
-            </View>
-            <View style={styles.sleepDivider} />
-            <View style={styles.sleepRow}>
-              {[
-                { label: 'Duration', value: '7h 32m' },
-                { label: 'Deep Sleep', value: '2h 15m' },
-                { label: 'REM', value: '1h 48m' },
-              ].map((s, i) => (
-                <View key={i} style={styles.sleepStat}>
-                  <Text style={styles.sleepLabel}>{s.label}</Text>
-                  <Text style={styles.sleepValue}>{s.value}</Text>
-                </View>
-              ))}
-            </View>
-            <View style={styles.sleepBar}>
-              <View style={[styles.sleepSeg, { flex: 0.15, backgroundColor: colors.softTeal }]} />
-              <View style={[styles.sleepSeg, { flex: 0.30, backgroundColor: colors.deepTeal }]} />
-              <View style={[styles.sleepSeg, { flex: 0.25, backgroundColor: colors.mintGreen }]} />
-              <View style={[styles.sleepSeg, { flex: 0.20, backgroundColor: colors.deepTeal }]} />
-              <View style={[styles.sleepSeg, { flex: 0.10, backgroundColor: colors.softTeal }]} />
-            </View>
-            <View style={styles.sleepLegend}>
-              {[
-                { color: colors.softTeal, label: 'Awake' },
-                { color: colors.deepTeal, label: 'Light' },
-                { color: colors.mintGreen, label: 'Deep' },
-              ].map((l, i) => (
-                <View key={i} style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: l.color }]} />
-                  <Text style={styles.legendText}>{l.label}</Text>
-                </View>
-              ))}
-            </View>
-          </GlassCard>
-        </View>
 
-        {/* Recent Dreams */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recent Dreams</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {[
-              { title: 'Ocean Voyage', mood: '😊', time: 'Yesterday', bg: '#1a3545' },
-              { title: 'Mountain Peak', mood: '😌', time: '2 days ago', bg: '#2a3a2a' },
-              { title: 'Starry Night', mood: '😴', time: '3 days ago', bg: '#1a1a3a' },
-            ].map((d, i) => (
-              <TouchableOpacity key={i}>
-                <GlassCard style={[styles.recentCard, { backgroundColor: d.bg }]}>
-                  <Text style={{ fontSize: 28 }}>{d.mood}</Text>
-                  <Text style={styles.recentTitle}>{d.title}</Text>
-                  <Text style={styles.recentTime}>{d.time}</Text>
-                </GlassCard>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: 120 }} />
       </ScrollView>
     </View>
   );
 };
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  scrollView: { flex: 1 },
-  header: { padding: spacing.lg, paddingTop: spacing.xxl },
-  greeting: { ...typography.h1, color: colors.textPrimary, marginBottom: spacing.xs },
+
+  header: { paddingHorizontal: spacing.lg, paddingTop: spacing.xxl, paddingBottom: spacing.md },
+  greeting: { ...typography.h1, color: colors.textPrimary, marginBottom: 4 },
   date: { ...typography.caption, color: colors.textSecondary },
-  dreamCard: { marginHorizontal: spacing.lg, marginBottom: spacing.lg },
-  dreamImage: { width: '100%', height: 200, borderRadius: borderRadius.md, marginBottom: spacing.md },
-  aiTag: {
-    position: 'absolute', top: spacing.md + 8, right: spacing.md + 8,
-    backgroundColor: 'rgba(139,180,171,0.7)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: borderRadius.sm,
-  },
-  aiTagText: { ...typography.small, color: colors.textPrimary },
+
+  dreamCard: { marginHorizontal: spacing.lg, marginBottom: spacing.lg, padding: 0, overflow: 'hidden' },
+  dreamImageWrap: { position: 'relative' },
+  dreamImage: { width: '100%', height: 190, borderRadius: 0 },
+  dreamBody: { padding: spacing.md },
   dreamTitle: { ...typography.h3, color: colors.textPrimary, marginBottom: spacing.xs },
-  dreamSnippet: { ...typography.body, color: colors.textSecondary, marginBottom: spacing.md },
+  dreamSnippet: { ...typography.body, color: colors.textSecondary, lineHeight: 22, marginBottom: spacing.sm },
   dreamMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
   dreamTime: { ...typography.caption, color: colors.textTertiary },
-  moodBadge: { backgroundColor: colors.softTeal, paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: borderRadius.full },
-  moodText: { ...typography.caption, color: colors.textPrimary },
-  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+  moodBadge: {
+    backgroundColor: 'rgba(181,217,168,0.15)', borderRadius: borderRadius.full,
+    borderWidth: 1, borderColor: colors.mintGreen, paddingHorizontal: spacing.md, paddingVertical: 3,
+  },
+  moodText: { ...typography.caption, color: colors.mintGreen, fontWeight: '600' },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, alignItems: 'center' },
   miniTag: { backgroundColor: colors.deepTeal, paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: borderRadius.sm },
   miniTagText: { ...typography.small, color: colors.mintGreen },
-  section: { marginBottom: spacing.lg },
-  sectionTitle: { ...typography.h3, color: colors.textPrimary, marginHorizontal: spacing.lg, marginBottom: spacing.md },
-  insightCard: { marginHorizontal: spacing.lg },
-  aiHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm, gap: spacing.sm },
-  aiLabel: { ...typography.caption, color: colors.mintGreen, fontWeight: '600' },
-  insightText: { ...typography.body, color: colors.textSecondary, lineHeight: 22, marginBottom: spacing.md },
-  symbolTitle: { ...typography.caption, color: colors.textTertiary, marginBottom: spacing.sm },
-  symbolRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.xs },
-  symbolChip: { backgroundColor: colors.surface, paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: borderRadius.sm },
-  symbolText: { ...typography.small, color: colors.textSecondary },
-  suggestionCard: { width: 140, marginLeft: spacing.lg, alignItems: 'center' },
-  suggestionIcon: { fontSize: 32, marginBottom: spacing.sm },
-  suggestionLabel: { ...typography.caption, color: colors.textTertiary, marginBottom: spacing.xs },
-  suggestionValue: { ...typography.body, color: colors.textPrimary, textAlign: 'center', marginBottom: 4 },
-  suggestionDetail: { ...typography.small, color: colors.textTertiary, textAlign: 'center' },
-  sleepCard: { marginHorizontal: spacing.lg },
-  sleepScoreRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md },
-  sleepScoreCircle: {
-    width: 64, height: 64, borderRadius: 32, borderWidth: 3, borderColor: colors.mintGreen,
-    justifyContent: 'center', alignItems: 'center', flexDirection: 'row',
-  },
-  sleepScoreValue: { ...typography.h2, color: colors.mintGreen },
-  sleepScoreUnit: { ...typography.small, color: colors.mintGreen, marginTop: 4 },
-  sleepScoreLabel: { ...typography.body, color: colors.textPrimary, fontWeight: '600' },
-  sleepScoreDesc: { ...typography.caption, color: colors.textSecondary },
-  sleepDivider: { height: 1, backgroundColor: colors.deepTeal, marginBottom: spacing.md },
-  sleepRow: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: spacing.md },
-  sleepStat: { alignItems: 'center' },
-  sleepLabel: { ...typography.caption, color: colors.textTertiary, marginBottom: spacing.xs },
-  sleepValue: { ...typography.h3, color: colors.mintGreen },
-  sleepBar: { flexDirection: 'row', height: 8, borderRadius: 4, overflow: 'hidden', marginBottom: spacing.sm },
-  sleepSeg: { height: 8 },
-  sleepLegend: { flexDirection: 'row', justifyContent: 'center', gap: spacing.md },
+  tapHint: { ...typography.small, color: colors.textTertiary, marginLeft: 'auto' },
+
+  section: { marginHorizontal: spacing.lg, marginBottom: spacing.lg },
+  sectionTitle: { ...typography.h3, color: colors.textPrimary, marginBottom: spacing.md },
+
+  reflectionText: { ...typography.body, color: colors.textPrimary, fontStyle: 'italic', lineHeight: 26, marginBottom: spacing.sm },
+  reflectionHint: { ...typography.caption, color: colors.mintGreen },
+
+  trendSubtitle: { ...typography.caption, color: colors.textTertiary, marginBottom: spacing.md },
+  trendRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: spacing.md },
+  trendItem: { flex: 1, alignItems: 'center', gap: 4 },
+  trendEmoji: { fontSize: 16 },
+  trendBar: { width: 8, height: 36, borderRadius: 4 },
+  trendDay: { ...typography.small, color: colors.textTertiary, fontSize: 10 },
+  trendLegend: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
   legendText: { ...typography.small, color: colors.textTertiary },
-  recentCard: { width: 130, marginLeft: spacing.lg, alignItems: 'center', paddingVertical: spacing.lg },
-  recentTitle: { ...typography.caption, color: colors.textPrimary, marginTop: spacing.sm, fontWeight: '600' },
-  recentTime: { ...typography.small, color: colors.textTertiary, marginTop: 4 },
+
+  aiLabel: { ...typography.caption, color: colors.mintGreen, fontWeight: '700', marginBottom: spacing.sm },
+  insightText: { ...typography.body, color: colors.textSecondary, lineHeight: 22, marginBottom: spacing.md },
+  symbolRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  symbolChip: { backgroundColor: colors.surface, paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: borderRadius.sm },
+  symbolText: { ...typography.small, color: colors.textSecondary },
+
+  suggestionsRow: { gap: spacing.md },
+  suggestionCard: { width: 175, flexShrink: 0 },
+  suggestionIcon: { fontSize: 28, marginBottom: spacing.xs },
+  suggestionLabel: { ...typography.caption, color: colors.mintGreen, fontWeight: '700', marginBottom: 4 },
+  suggestionText: { ...typography.small, color: colors.textSecondary, lineHeight: 18 },
+
+  statsCard: { padding: 0, overflow: 'hidden' },
+  statsRow: { flexDirection: 'row' },
+  statItem: { flex: 1, alignItems: 'center', paddingVertical: spacing.lg, paddingHorizontal: spacing.sm },
+  statBigValue: { ...typography.h1, color: colors.mintGreen, marginBottom: 4 },
+  statEmoji: { fontSize: 28, marginBottom: 4 },
+  statMoodValue: { ...typography.h3, color: colors.mintGreen, fontWeight: '700', marginBottom: 2 },
+  statLabel: { ...typography.caption, color: colors.textTertiary, textAlign: 'center' },
+  statDividerV: { width: 1, backgroundColor: colors.deepTeal, marginVertical: spacing.md },
+  statDividerH: { height: 1, backgroundColor: colors.deepTeal },
 });

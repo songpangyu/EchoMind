@@ -16,7 +16,7 @@ export type TabParamList = {
   Home: undefined;
   Journal: undefined;
   Record: undefined;
-  Community: undefined;
+  Community: { shared?: boolean } | undefined;
   Me: undefined;
 };
 
