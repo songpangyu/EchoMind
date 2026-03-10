@@ -7,6 +7,9 @@ import {
     TouchableOpacity,
     Dimensions,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RootStackParamList } from '../navigation/types';
 import { GlassCard } from '../components/GlassCard';
 import { FloatingParticles } from '../components/FloatingParticles';
 import { colors, spacing, typography, borderRadius } from '../theme';
@@ -43,15 +46,15 @@ const MONTHLY_DREAMS = [3, 5, 2, 4, 6, 3, 7, 4, 5, 8, 6, 3];
 const MONTH_LABELS = ['Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb'];
 
 const MENU_ITEMS = [
-    { icon: '🔔', label: 'Notifications' },
-    { icon: '🌙', label: 'Sleep Reminders' },
-    { icon: '🔒', label: 'Privacy' },
-    { icon: '🎨', label: 'Appearance' },
-    { icon: '📤', label: 'Export Data' },
-    { icon: '❓', label: 'Help & Support' },
+    { icon: '🔔', label: 'Notifications', route: 'Notifications' as keyof RootStackParamList },
+    { icon: '⭐', label: 'Saved Dreams', route: 'SavedDreams' as keyof RootStackParamList },
+    { icon: '✏️', label: 'Edit Profile', route: 'EditProfile' as keyof RootStackParamList },
+    { icon: '🔒', label: 'Privacy', route: 'Privacy' as keyof RootStackParamList },
+    { icon: '❓', label: 'Help & Support', route: 'HelpSupport' as keyof RootStackParamList },
 ];
 
 export const MeScreen: React.FC = () => {
+    const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
     const [tab, setTab] = useState<'profile' | 'insights'>('profile');
     const [period, setPeriod] = useState<'week' | 'month'>('week');
     const maxDreams = Math.max(...WEEKLY_DATA.map(d => d.dreams));
@@ -63,10 +66,14 @@ export const MeScreen: React.FC = () => {
             <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
                 {/* Profile Header */}
                 <View style={styles.profileHeader}>
-                    <View style={styles.avatarWrapper}>
-                        <Text style={styles.avatarEmoji}>🌙</Text>
-                    </View>
-                    <Text style={styles.username}>Dreamer</Text>
+                    <TouchableOpacity onPress={() => navigation.navigate('EditProfile')}>
+                        <View style={styles.avatarWrapper}>
+                            <Text style={styles.avatarEmoji}>🌙</Text>
+                        </View>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => navigation.navigate('EditProfile')}>
+                        <Text style={styles.username}>Dreamer</Text>
+                    </TouchableOpacity>
                     <Text style={styles.userSub}>Exploring the dreamscape since 2024</Text>
                     <View style={styles.statsRow}>
                         {[
@@ -101,11 +108,13 @@ export const MeScreen: React.FC = () => {
                     /* Profile Settings */
                     <View style={styles.menuSection}>
                         {MENU_ITEMS.map((item, i) => (
-                            <GlassCard key={i} style={styles.menuItem}>
-                                <Text style={styles.menuIcon}>{item.icon}</Text>
-                                <Text style={styles.menuLabel}>{item.label}</Text>
-                                <Text style={styles.menuArrow}>›</Text>
-                            </GlassCard>
+                            <TouchableOpacity key={i} onPress={() => navigation.navigate(item.route as any)}>
+                                <GlassCard style={styles.menuItem}>
+                                    <Text style={styles.menuIcon}>{item.icon}</Text>
+                                    <Text style={styles.menuLabel}>{item.label}</Text>
+                                    <Text style={styles.menuArrow}>›</Text>
+                                </GlassCard>
+                            </TouchableOpacity>
                         ))}
                         <TouchableOpacity style={styles.logoutBtn}>
                             <Text style={styles.logoutText}>Log Out</Text>

@@ -10,6 +10,13 @@ export type RootStackParamList = {
   Comments: { dreamId: string };
   SearchResults: { query: string };
   Profile: { userId: string };
+  CommunityProfile: { username: string };
+  CommunityPostDetail: { post: any };
+  Notifications: undefined;
+  SavedDreams: undefined;
+  EditProfile: undefined;
+  Privacy: undefined;
+  HelpSupport: undefined;
 };
 
 export type TabParamList = {

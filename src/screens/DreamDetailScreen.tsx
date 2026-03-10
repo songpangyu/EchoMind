@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
     View,
     Text,
@@ -6,6 +6,7 @@ import {
     ScrollView,
     TouchableOpacity,
     Image,
+    Animated,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -90,7 +91,30 @@ type NavProp = StackNavigationProp<RootStackParamList>;
 export const DreamDetailScreen: React.FC = () => {
     const navigation = useNavigation<NavProp>();
     const [perspective, setPerspective] = useState<Perspective>('life');
+    const [isStarred, setIsStarred] = useState(false);
     const analysis = AI_ANALYSIS[perspective];
+
+    // Toast
+    const [toastMsg, setToastMsg] = useState('');
+    const toastAnim = useRef(new Animated.Value(0)).current;
+    const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const showToast = useCallback((msg: string) => {
+        if (toastTimer.current) clearTimeout(toastTimer.current);
+        setToastMsg(msg);
+        Animated.sequence([
+            Animated.timing(toastAnim, { toValue: 1, duration: 250, useNativeDriver: true }),
+            Animated.delay(1800),
+            Animated.timing(toastAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+        ]).start();
+        toastTimer.current = setTimeout(() => setToastMsg(''), 2400);
+    }, [toastAnim]);
+
+    const toggleStar = () => {
+        const next = !isStarred;
+        setIsStarred(next);
+        showToast(next ? '⭐ Added to favorites' : '✓ Removed from favorites');
+    };
 
     const goHome = () => {
         navigation.goBack();
@@ -114,6 +138,10 @@ export const DreamDetailScreen: React.FC = () => {
                     {/* Back button */}
                     <TouchableOpacity style={styles.backBtn} onPress={goHome}>
                         <Text style={styles.backBtnText}>‹</Text>
+                    </TouchableOpacity>
+                    {/* Star button */}
+                    <TouchableOpacity style={styles.starBtn} onPress={toggleStar} activeOpacity={0.8}>
+                        <Text style={styles.starBtnText}>{isStarred ? '⭐' : '☆'}</Text>
                     </TouchableOpacity>
                     {/* Image style badge */}
                     <View style={styles.imageStyleBadge}>
@@ -255,7 +283,23 @@ export const DreamDetailScreen: React.FC = () => {
 
                 <View style={{ height: 120 }} />
             </ScrollView>
-        </View>
+
+            {/* Toast */}
+            {toastMsg !== '' && (
+                <Animated.View
+                    style={[
+                        styles.toast,
+                        {
+                            opacity: toastAnim,
+                            transform: [{ translateY: toastAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
+                        },
+                    ]}
+                    pointerEvents="none"
+                >
+                    <Text style={styles.toastText}>{toastMsg}</Text>
+                </Animated.View>
+            )}
+        </View >
     );
 };
 
@@ -352,6 +396,35 @@ const styles = StyleSheet.create({
         borderWidth: 1, borderColor: colors.softTeal,
     },
     shareBtnText: { ...typography.body, color: colors.mintGreen, fontWeight: '600' },
+
+    // Star button overlay
+    starBtn: {
+        position: 'absolute', top: 48, right: 16,
+        width: 40, height: 40, borderRadius: 20,
+        backgroundColor: 'rgba(15,31,31,0.7)',
+        alignItems: 'center', justifyContent: 'center',
+    },
+    starBtnText: { fontSize: 22 },
+
+    // Toast
+    toast: {
+        position: 'absolute',
+        bottom: 110,
+        alignSelf: 'center',
+        backgroundColor: 'rgba(26,47,47,0.96)',
+        borderRadius: borderRadius.full,
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.sm + 2,
+        borderWidth: 1,
+        borderColor: colors.mintGreen + '60',
+        shadowColor: colors.mintGreen,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 8,
+        zIndex: 999,
+    },
+    toastText: { ...typography.caption, color: colors.textPrimary, fontWeight: '600', textAlign: 'center' },
     healthHeader: { marginBottom: spacing.md },
     healthTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: 2 },
     healthAppleBadge: {
