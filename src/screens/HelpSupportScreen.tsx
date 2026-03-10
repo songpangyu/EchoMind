@@ -1,17 +1,19 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, typography, borderRadius } from '../theme';
 import { FloatingParticles } from '../components/FloatingParticles';
 import { GlassCard } from '../components/GlassCard';
 
 export const HelpSupportScreen: React.FC = () => {
+    const insets = useSafeAreaInsets();
     const navigation = useNavigation();
 
     return (
         <View style={styles.container}>
             <FloatingParticles />
-            <View style={styles.header}>
+            <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
                 <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
                     <Text style={styles.backBtnText}>‹</Text>
                 </TouchableOpacity>
@@ -55,7 +57,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingTop: 60,
+        paddingTop: 0,
         paddingBottom: 20,
         paddingHorizontal: spacing.lg,
     },

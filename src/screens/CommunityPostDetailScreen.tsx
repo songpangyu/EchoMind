@@ -10,14 +10,17 @@ import {
     KeyboardAvoidingView,
     Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/types';
 import { colors, spacing, typography, borderRadius } from '../theme';
+import Icon from '../components/Icon';
 import { GlassCard } from '../components/GlassCard';
 import { FloatingParticles } from '../components/FloatingParticles';
 
 export const CommunityPostDetailScreen: React.FC = () => {
+    const insets = useSafeAreaInsets();
     const route = useRoute<RouteProp<RootStackParamList, 'CommunityPostDetail'>>();
     const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
     const post = route.params.post;
@@ -54,7 +57,7 @@ export const CommunityPostDetailScreen: React.FC = () => {
             <FloatingParticles />
 
             {/* Header */}
-            <View style={styles.header}>
+            <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
                 <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
                     <Text style={styles.backBtnText}>‹</Text>
                 </TouchableOpacity>
@@ -80,6 +83,7 @@ export const CommunityPostDetailScreen: React.FC = () => {
                             </View>
                             <View style={styles.moodPill}>
                                 <Text style={styles.moodEmoji}>{post.mood}</Text>
+                                <Text style={styles.moodLabel}>{post.mood === '😌' ? 'Peaceful' : post.mood === '😊' ? 'Happy' : post.mood === '😰' ? 'Anxious' : post.mood === '😢' ? 'Sad' : post.mood === '😴' ? 'Calm' : post.mood === '😁' ? 'Joyful' : 'Dreamy'}</Text>
                             </View>
                         </View>
 
@@ -102,7 +106,7 @@ export const CommunityPostDetailScreen: React.FC = () => {
                         <View style={styles.postFooter}>
                             <TouchableOpacity style={styles.actionBtn} onPress={toggleLike}>
                                 <Text style={[styles.actionText, isLiked && styles.actionTextActive]}>
-                                    {isLiked ? '💚' : '🤍'} {likes}
+                                    <Icon name={isLiked ? 'heart-fill' : 'heart'} size={16} color={isLiked ? '#e05252' : colors.textSecondary} /> {likes}
                                 </Text>
                             </TouchableOpacity>
                             <View style={styles.actionBtn}>
@@ -164,7 +168,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingTop: 60,
+        paddingTop: 0,
         paddingBottom: 20,
         paddingHorizontal: spacing.lg,
     },
@@ -223,13 +227,23 @@ const styles = StyleSheet.create({
         marginTop: 2,
     },
     moodPill: {
-        backgroundColor: 'rgba(255,255,255,0.1)',
-        paddingHorizontal: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: 'rgba(181,217,168,0.15)',
+        paddingHorizontal: 10,
         paddingVertical: 4,
-        borderRadius: 12,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(181,217,168,0.3)',
     },
     moodEmoji: {
-        fontSize: 16,
+        fontSize: 12,
+    },
+    moodLabel: {
+        ...typography.small,
+        color: colors.mintGreen,
+        fontWeight: '600' as const,
     },
     postTitle: {
         color: colors.textPrimary,

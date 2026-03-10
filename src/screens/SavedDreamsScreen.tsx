@@ -1,79 +1,84 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, typography, borderRadius } from '../theme';
+import Icon from '../components/Icon';
 import { GlassCard } from '../components/GlassCard';
 import { FloatingParticles } from '../components/FloatingParticles';
 
 const SAVED_POSTS = [
     {
-        id: '1', user: 'River', avatar: 'R', time: '5h ago',
-        title: 'Underwater Garden',
-        dream: 'Swimming through a bioluminescent coral garden where fish sang melodies. Each coral pulsed with a different color...',
-        image: 'https://images.unsplash.com/photo-1682687220742-aba13b6e50ba?w=400&h=250&fit=crop',
-        mood: '😊', tags: ['Water', 'Nature'], likes: 18, comments: 3,
+        id: '1', time: '07:15 AM',
+        title: 'Forest Lake Under',
+        dream: 'Walking into a forest bathed in moonlight, with towering trees. After passing through the woods, I found a calm lake reflecting stars...',
+        mood: 'peaceful', tags: ['Forest', 'Lake'],
     },
     {
-        id: 's1', user: 'Nova', avatar: 'N', time: '1d ago',
+        id: '2', time: 'Yesterday',
         title: 'City in the Clouds',
         dream: 'I stepped out of my window onto a solid cloud. There was a whole bustling city up there, made of crystallized air and light.',
-        image: null,
-        mood: '😌', tags: ['Flying', 'City'], likes: 56, comments: 12,
+        mood: 'peaceful', tags: ['Flying', 'City'],
     }
 ];
 
 export const SavedDreamsScreen: React.FC = () => {
+    const insets = useSafeAreaInsets();
     const navigation = useNavigation();
 
     return (
         <View style={styles.container}>
             <FloatingParticles />
-            <View style={styles.header}>
+            <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
                 <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
                     <Text style={styles.backBtnText}>‹</Text>
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Saved Dreams</Text>
+                <Text style={styles.headerTitle}>Stared Dreams</Text>
                 <View style={{ width: 44 }} />
             </View>
 
             <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
                 {SAVED_POSTS.map(post => (
                     <GlassCard key={post.id} style={styles.postCard}>
-                        {/* Header */}
-                        <View style={styles.postHeader}>
-                            <View style={styles.avatar}>
-                                <Text style={styles.avatarText}>{post.avatar}</Text>
+                        <View style={styles.cardMainRow}>
+                            {/* Left Icon box */}
+                            <View style={styles.iconBox}>
+                                <Icon name="tree" size={32} color={colors.mintGreen} />
                             </View>
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.username}>{post.user}</Text>
-                                <Text style={styles.postTime}>{post.time}</Text>
-                            </View>
-                            <View style={styles.moodPill}>
-                                <Text style={styles.moodEmoji}>{post.mood}</Text>
-                            </View>
-                        </View>
 
-                        <Text style={styles.postTitle}>{post.title}</Text>
-
-                        {post.image && (
-                            <Image source={{ uri: post.image }} style={styles.postImage} resizeMode="cover" />
-                        )}
-
-                        <Text style={styles.dreamText}>{post.dream}</Text>
-
-                        <View style={styles.tagRow}>
-                            {post.tags.map((tag, i) => (
-                                <View key={i} style={styles.tag}>
-                                    <Text style={styles.tagText}>{tag}</Text>
+                            {/* Right Content */}
+                            <View style={styles.rightContent}>
+                                <View style={styles.titleRow}>
+                                    <Text style={styles.postTitle} numberOfLines={1}>{post.title}</Text>
+                                    <View style={styles.moodPill}>
+                                        <Text style={styles.moodEmoji}>
+                                            {post.mood === 'happy' ? '😊' : post.mood === 'peaceful' ? '😌' : post.mood === 'anxious' ? '😰' : post.mood === 'sad' ? '😢' : '😴'}
+                                        </Text>
+                                        <Text style={styles.moodLabel}>
+                                            {post.mood.charAt(0).toUpperCase() + post.mood.slice(1)}
+                                        </Text>
+                                    </View>
                                 </View>
-                            ))}
+
+                                <Text style={styles.postTime}>{post.time}</Text>
+
+                                <Text style={styles.dreamText} numberOfLines={3}>{post.dream}</Text>
+                            </View>
                         </View>
 
-                        <View style={styles.postFooter}>
-                            <Text style={styles.actionText}>💚 {post.likes}</Text>
-                            <Text style={styles.actionText}>💬 {post.comments}</Text>
-                            <View style={{ flex: 1 }} />
-                            <Text style={[styles.actionText, { color: colors.mintGreen }]}>⭐ Saved</Text>
+                        <View style={styles.divider} />
+
+                        <View style={styles.cardFooter}>
+                            <View style={styles.tagRow}>
+                                {post.tags.map((tag, i) => (
+                                    <View key={i} style={styles.tag}>
+                                        <Text style={styles.tagText}>{tag}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                            <TouchableOpacity style={styles.moreBtn}>
+                                <Icon name="more" size={20} color={colors.mintGreen} />
+                            </TouchableOpacity>
                         </View>
                     </GlassCard>
                 ))}
@@ -92,7 +97,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingTop: 60,
+        paddingTop: 0,
         paddingBottom: 20,
         paddingHorizontal: spacing.lg,
     },
@@ -121,86 +126,99 @@ const styles = StyleSheet.create({
     },
     postCard: {
         padding: spacing.md,
+        paddingBottom: spacing.sm,
         marginBottom: spacing.md,
     },
-    postHeader: {
+    cardMainRow: {
         flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: spacing.sm,
     },
-    avatar: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: 'rgba(255,255,255,0.2)',
+    iconBox: {
+        width: 68,
+        height: 68,
+        borderRadius: 16,
+        backgroundColor: 'rgba(181,217,168,0.06)',
+        borderWidth: 1,
+        borderColor: 'rgba(181,217,168,0.1)',
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: spacing.sm,
+        marginRight: spacing.md,
     },
-    avatarText: {
-        fontSize: 18,
-        color: '#fff',
+    rightContent: {
+        flex: 1,
     },
-    username: {
-        color: colors.textPrimary,
-        ...typography.body,
-        fontWeight: '600',
-    },
-    postTime: {
-        color: colors.textTertiary,
-        ...typography.small,
-    },
-    moodPill: {
-        paddingHorizontal: spacing.sm,
-        paddingVertical: 4,
-        backgroundColor: 'rgba(255,255,255,0.1)',
-        borderRadius: 12,
-    },
-    moodEmoji: {
-        fontSize: 16,
+    titleRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 4,
     },
     postTitle: {
         color: colors.textPrimary,
         ...typography.h3,
-        marginBottom: spacing.sm,
+        flex: 1,
+        marginRight: spacing.sm,
     },
-    postImage: {
-        width: '100%',
-        height: 180,
-        borderRadius: borderRadius.md,
+    moodPill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: 4,
+        backgroundColor: 'rgba(181,217,168,0.15)',
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(181,217,168,0.5)',
+    },
+    moodEmoji: {
+        fontSize: 14,
+    },
+    moodLabel: {
+        ...typography.small,
+        color: colors.textPrimary,
+    },
+    postTime: {
+        color: colors.textTertiary,
+        ...typography.small,
         marginBottom: spacing.sm,
     },
     dreamText: {
         color: colors.textSecondary,
         ...typography.body,
         lineHeight: 22,
+    },
+    divider: {
+        height: 1,
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        marginTop: spacing.sm,
         marginBottom: spacing.md,
+    },
+    cardFooter: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 4,
     },
     tagRow: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: spacing.sm,
-        marginBottom: spacing.md,
     },
     tag: {
-        backgroundColor: 'rgba(100,255,218,0.1)',
-        paddingHorizontal: spacing.sm,
-        paddingVertical: 4,
-        borderRadius: borderRadius.sm,
-        borderWidth: 1,
-        borderColor: 'rgba(100,255,218,0.2)',
+        backgroundColor: 'rgba(181,217,168,0.1)',
+        paddingHorizontal: spacing.sm + 4,
+        paddingVertical: 6,
+        borderRadius: 8,
     },
     tagText: {
         color: colors.mintGreen,
-        ...typography.small,
+        ...typography.caption,
     },
-    postFooter: {
-        flexDirection: 'row',
+    moreBtn: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        justifyContent: 'center',
         alignItems: 'center',
-        gap: spacing.lg,
-    },
-    actionText: {
-        color: colors.textTertiary,
-        ...typography.body,
     },
 });

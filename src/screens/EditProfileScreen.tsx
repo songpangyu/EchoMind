@@ -1,17 +1,21 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { GlassCard } from '../components/GlassCard';
 import { colors, spacing, typography, borderRadius } from '../theme';
+import Icon from '../components/Icon';
 import { FloatingParticles } from '../components/FloatingParticles';
 
 export const EditProfileScreen: React.FC = () => {
+    const insets = useSafeAreaInsets();
     const navigation = useNavigation();
     const [name, setName] = useState('Dreamer');
 
     return (
         <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
             <FloatingParticles />
-            <View style={styles.header}>
+            <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
                 <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
                     <Text style={styles.backBtnText}>‹</Text>
                 </TouchableOpacity>
@@ -24,9 +28,9 @@ export const EditProfileScreen: React.FC = () => {
             <ScrollView style={styles.scrollView}>
                 <View style={styles.avatarSection}>
                     <TouchableOpacity style={styles.avatarWrapper}>
-                        <Text style={styles.avatarEmoji}>🌙</Text>
+                        <Icon name="moon" size={32} color={colors.mintGreen} />
                         <View style={styles.editIconWrapper}>
-                            <Text style={styles.editIcon}>📷</Text>
+                            <Icon name="camera" size={16} color={colors.textPrimary} />
                         </View>
                     </TouchableOpacity>
                     <Text style={styles.hintText}>Tap to change avatar</Text>
@@ -56,7 +60,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingTop: 60,
+        paddingTop: 0,
         paddingBottom: 20,
         paddingHorizontal: spacing.lg,
     },

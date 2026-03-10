@@ -7,12 +7,14 @@ import {
     TouchableOpacity,
     Dimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/types';
 import { GlassCard } from '../components/GlassCard';
 import { FloatingParticles } from '../components/FloatingParticles';
 import { colors, spacing, typography, borderRadius } from '../theme';
+import Icon, { IconName } from '../components/Icon';
 
 const { width } = Dimensions.get('window');
 
@@ -45,16 +47,17 @@ const MOODS = [
 const MONTHLY_DREAMS = [3, 5, 2, 4, 6, 3, 7, 4, 5, 8, 6, 3];
 const MONTH_LABELS = ['Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb'];
 
-const MENU_ITEMS = [
-    { icon: '🔔', label: 'Notifications', route: 'Notifications' as keyof RootStackParamList },
-    { icon: '⭐', label: 'Saved Dreams', route: 'SavedDreams' as keyof RootStackParamList },
-    { icon: '✏️', label: 'Edit Profile', route: 'EditProfile' as keyof RootStackParamList },
-    { icon: '🔒', label: 'Privacy', route: 'Privacy' as keyof RootStackParamList },
-    { icon: '❓', label: 'Help & Support', route: 'HelpSupport' as keyof RootStackParamList },
+const MENU_ITEMS: { icon: IconName; label: string; route: keyof RootStackParamList }[] = [
+    { icon: 'bell', label: 'Notifications', route: 'Notifications' as keyof RootStackParamList },
+    { icon: 'star', label: 'Stared Dreams', route: 'SavedDreams' as keyof RootStackParamList },
+    { icon: 'edit', label: 'Edit Profile', route: 'EditProfile' as keyof RootStackParamList },
+    { icon: 'lock', label: 'Privacy', route: 'Privacy' as keyof RootStackParamList },
+    { icon: 'help', label: 'Help & Support', route: 'HelpSupport' as keyof RootStackParamList },
 ];
 
 export const MeScreen: React.FC = () => {
     const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+    const insets = useSafeAreaInsets();
     const [tab, setTab] = useState<'profile' | 'insights'>('profile');
     const [period, setPeriod] = useState<'week' | 'month'>('week');
     const maxDreams = Math.max(...WEEKLY_DATA.map(d => d.dreams));
@@ -65,26 +68,33 @@ export const MeScreen: React.FC = () => {
             <FloatingParticles />
             <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
                 {/* Profile Header */}
-                <View style={styles.profileHeader}>
+                <View style={[styles.profileHeader, { paddingTop: insets.top + 8 }]}>
                     <TouchableOpacity onPress={() => navigation.navigate('EditProfile')}>
                         <View style={styles.avatarWrapper}>
-                            <Text style={styles.avatarEmoji}>🌙</Text>
+                            <Icon name="moon" size={32} color={colors.mintGreen} />
                         </View>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => navigation.navigate('EditProfile')}>
                         <Text style={styles.username}>Dreamer</Text>
                     </TouchableOpacity>
                     <Text style={styles.userSub}>Exploring the dreamscape since 2024</Text>
-                    <View style={styles.statsRow}>
+                    <View style={styles.interactionsRow}>
                         {[
-                            { value: '24', label: 'Dreams' },
-                            { value: '12', label: 'Streak' },
-                            { value: '7', label: 'Shared' },
-                        ].map((s, i) => (
-                            <View key={i} style={styles.profileStat}>
-                                <Text style={styles.profileStatValue}>{s.value}</Text>
-                                <Text style={styles.profileStatLabel}>{s.label}</Text>
-                            </View>
+                            { icon: 'like' as IconName, label: 'Likes', unread: 2, iconColor: '#ff6b6b' },
+                            { icon: 'user-plus' as IconName, label: 'New followers', unread: 0, iconColor: '#4a89dc' },
+                            { icon: 'comment-at' as IconName, label: 'Comments', unread: 0, iconColor: '#37bc9b' },
+                        ].map((item, i) => (
+                            <TouchableOpacity key={i} style={styles.interactionItem} activeOpacity={0.7}>
+                                <View style={styles.interactionIconWrap}>
+                                    <Icon name={item.icon} size={28} color={item.iconColor} strokeWidth={2} />
+                                    {item.unread > 0 && (
+                                        <View style={styles.badgeContainer}>
+                                            <Text style={styles.badgeText}>{item.unread}</Text>
+                                        </View>
+                                    )}
+                                </View>
+                                <Text style={styles.interactionLabel}>{item.label}</Text>
+                            </TouchableOpacity>
                         ))}
                     </View>
                 </View>
@@ -98,7 +108,7 @@ export const MeScreen: React.FC = () => {
                             onPress={() => setTab(t)}
                         >
                             <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
-                                {t === 'profile' ? '👤 Profile' : '📊 Insights'}
+                                {t === 'profile' ? 'Profile' : 'Insights'}
                             </Text>
                         </TouchableOpacity>
                     ))}
@@ -110,9 +120,10 @@ export const MeScreen: React.FC = () => {
                         {MENU_ITEMS.map((item, i) => (
                             <TouchableOpacity key={i} onPress={() => navigation.navigate(item.route as any)}>
                                 <GlassCard style={styles.menuItem}>
-                                    <Text style={styles.menuIcon}>{item.icon}</Text>
+
+                                    <Icon name={item.icon} size={20} color={colors.mintGreen} style={{ marginRight: 10 }} />
                                     <Text style={styles.menuLabel}>{item.label}</Text>
-                                    <Text style={styles.menuArrow}>›</Text>
+                                    <Icon name="back" size={16} color={colors.textTertiary} style={{ transform: [{ rotate: '180deg' }] }} />
                                 </GlassCard>
                             </TouchableOpacity>
                         ))}
@@ -126,13 +137,13 @@ export const MeScreen: React.FC = () => {
                         {/* Stats Grid */}
                         <View style={styles.statsGrid}>
                             {[
-                                { value: '24', label: 'Dreams', icon: '🌙' },
-                                { value: '7.5h', label: 'Avg Sleep', icon: '😴' },
-                                { value: '85%', label: 'Recall Rate', icon: '🧠' },
-                                { value: '12', label: 'Day Streak', icon: '🔥' },
+                                { value: '24', label: 'Dreams', icon: 'moon' as IconName },
+                                { value: '7.5h', label: 'Avg Sleep', icon: 'sleep' as IconName },
+                                { value: '85%', label: 'Recall Rate', icon: 'sparkle' as IconName },
+                                { value: '12', label: 'Day Streak', icon: 'sparkles' as IconName },
                             ].map((s, i) => (
                                 <GlassCard key={i} style={styles.statCard}>
-                                    <Text style={{ fontSize: 20 }}>{s.icon}</Text>
+                                    <Icon name={s.icon} size={20} color={colors.mintGreen} />
                                     <Text style={styles.statValue}>{s.value}</Text>
                                     <Text style={styles.statLabel}>{s.label}</Text>
                                 </GlassCard>
@@ -237,12 +248,12 @@ export const MeScreen: React.FC = () => {
                         <GlassCard style={styles.chartCard}>
                             <Text style={styles.chartTitle}>Personalized Discoveries</Text>
                             {[
-                                { icon: '🌊', title: 'Water dreams increasing', desc: 'You\'ve had 3x more water-related dreams this month. This may reflect emotional processing.' },
-                                { icon: '🌙', title: 'Peak dream time: 3-5 AM', desc: 'Most of your vivid dreams occur during late REM cycles. Try sleeping by 11 PM.' },
-                                { icon: '🦋', title: 'Recurring symbol: Butterflies', desc: 'Butterflies appeared in 4 dreams this month, often symbolizing transformation.' },
+                                { icon: 'wave' as IconName, title: 'Water dreams increasing', desc: 'You\'ve had 3x more water-related dreams this month. This may reflect emotional processing.' },
+                                { icon: 'moon' as IconName, title: 'Peak dream time: 3-5 AM', desc: 'Most of your vivid dreams occur during late REM cycles. Try sleeping by 11 PM.' },
+                                { icon: 'flower' as IconName, title: 'Recurring symbol: Butterflies', desc: 'Butterflies appeared in 4 dreams this month, often symbolizing transformation.' },
                             ].map((d, i) => (
                                 <View key={i} style={styles.discoveryItem}>
-                                    <Text style={{ fontSize: 24 }}>{d.icon}</Text>
+                                    <Icon name={d.icon} size={24} color={colors.mintGreen} />
                                     <View style={styles.discoveryContent}>
                                         <Text style={styles.discoveryTitle}>{d.title}</Text>
                                         <Text style={styles.discoveryDesc}>{d.desc}</Text>
@@ -271,7 +282,7 @@ const styles = StyleSheet.create({
     // Profile Header
     profileHeader: {
         alignItems: 'center',
-        paddingTop: spacing.xxl,
+        paddingTop: spacing.sm,
         paddingBottom: spacing.lg,
         paddingHorizontal: spacing.lg,
     },
@@ -289,17 +300,47 @@ const styles = StyleSheet.create({
     avatarEmoji: { fontSize: 36 },
     username: { ...typography.h2, color: colors.textPrimary, marginBottom: 4 },
     userSub: { ...typography.caption, color: colors.textSecondary, marginBottom: spacing.md },
-    statsRow: {
+    interactionsRow: {
         flexDirection: 'row',
-        gap: spacing.xl,
         paddingVertical: spacing.md,
-        paddingHorizontal: spacing.xl,
+        paddingHorizontal: spacing.lg,
         backgroundColor: colors.surface,
         borderRadius: borderRadius.lg,
+        width: '100%',
+        justifyContent: 'space-around',
     },
-    profileStat: { alignItems: 'center' },
-    profileStatValue: { ...typography.h2, color: colors.mintGreen },
-    profileStatLabel: { ...typography.caption, color: colors.textSecondary },
+    interactionItem: {
+        alignItems: 'center',
+        paddingHorizontal: spacing.sm,
+    },
+    interactionIconWrap: {
+        position: 'relative',
+        marginBottom: 6,
+    },
+    badgeContainer: {
+        position: 'absolute',
+        top: -6,
+        right: -8,
+        backgroundColor: '#ff3b30',
+        borderRadius: 10,
+        minWidth: 20,
+        height: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 4,
+        borderWidth: 2,
+        borderColor: colors.surface,
+        zIndex: 10,
+    },
+    badgeText: {
+        color: '#ffffff',
+        fontSize: 10,
+        fontWeight: 'bold',
+    },
+    interactionLabel: {
+        ...typography.caption,
+        color: colors.textSecondary,
+    },
 
     // Tab Switch
     tabSwitch: {
@@ -311,9 +352,9 @@ const styles = StyleSheet.create({
         padding: 4,
     },
     tabBtn: { flex: 1, paddingVertical: spacing.sm, alignItems: 'center', borderRadius: borderRadius.sm },
-    tabBtnActive: { backgroundColor: colors.softTeal },
+    tabBtnActive: { backgroundColor: colors.mintGreen },
     tabText: { ...typography.caption, color: colors.textTertiary },
-    tabTextActive: { color: colors.textPrimary, fontWeight: '600' },
+    tabTextActive: { color: colors.deepTeal, fontWeight: '700' as const },
 
     // Menu
     menuSection: { paddingHorizontal: spacing.lg, gap: spacing.sm },
@@ -353,7 +394,7 @@ const styles = StyleSheet.create({
     periodBtn: { flex: 1, paddingVertical: spacing.sm, alignItems: 'center', borderRadius: borderRadius.sm },
     periodBtnActive: { backgroundColor: colors.softTeal },
     periodText: { ...typography.caption, color: colors.textTertiary },
-    periodTextActive: { color: colors.textPrimary, fontWeight: '600' },
+    periodTextActive: { color: colors.deepTeal, fontWeight: '600' },
     chartCard: { marginHorizontal: spacing.lg, marginBottom: spacing.lg },
     chartTitle: { ...typography.h3, color: colors.textPrimary, marginBottom: spacing.md },
     barChart: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 140 },

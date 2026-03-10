@@ -25,15 +25,16 @@ import Animated, {
 import { GlassCard } from '../components/GlassCard';
 import { FloatingParticles } from '../components/FloatingParticles';
 import { colors, spacing, typography, borderRadius } from '../theme';
+import Icon, { IconName } from '../components/Icon';
 
-const IMAGE_STYLES = [
-  { id: 'realistic', label: 'Realistic', emoji: '📷', uri: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=600&h=400&fit=crop' },
-  { id: '3d-cartoon', label: '3D Cartoon', emoji: '🌟', uri: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600&h=400&fit=crop' },
-  { id: 'anime', label: 'Anime / Manga', emoji: '🎌', uri: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=600&h=400&fit=crop' },
-  { id: 'watercolor', label: 'Watercolor', emoji: '🎨', uri: 'https://images.unsplash.com/photo-1518241353330-0f7941c2d9b5?w=600&h=400&fit=crop' },
-  { id: 'oil-paint', label: 'Oil Painting', emoji: '🖼️', uri: 'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=600&h=400&fit=crop' },
-  { id: 'sketch', label: 'Pencil Sketch', emoji: '✏️', uri: 'https://images.unsplash.com/photo-1511497584788-876760111969?w=600&h=400&fit=crop' },
-  { id: 'fantasy', label: 'Fantasy Art', emoji: '🌈', uri: 'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=600&h=400&fit=crop' },
+const ART_STYLES: { id: string; label: string; icon: IconName; uri: string }[] = [
+  { id: 'realistic', label: 'Realistic', icon: 'image', uri: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=600&h=400&fit=crop' },
+  { id: '3d-cartoon', label: '3D Cartoon', icon: 'sparkles', uri: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600&h=400&fit=crop' },
+  { id: 'anime', label: 'Anime / Manga', icon: 'flag', uri: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=600&h=400&fit=crop' },
+  { id: 'watercolor', label: 'Watercolor', icon: 'palette', uri: 'https://images.unsplash.com/photo-1518241353330-0f7941c2d9b5?w=600&h=400&fit=crop' },
+  { id: 'oil-paint', label: 'Oil Painting', icon: 'brush', uri: 'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=600&h=400&fit=crop' },
+  { id: 'sketch', label: 'Pencil Sketch', icon: 'pencil', uri: 'https://images.unsplash.com/photo-1511497584788-876760111969?w=600&h=400&fit=crop' },
+  { id: 'fantasy', label: 'Fantasy Art', icon: 'rainbow', uri: 'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=600&h=400&fit=crop' },
 ];
 
 const MOCK_WORDS = [
@@ -58,7 +59,7 @@ const WAVE_HEIGHTS = [0.3, 0.7, 1, 0.5, 0.8, 0.4, 0.9, 0.6, 0.3, 0.75, 0.5, 0.85
 type InputMode = 'voice' | 'text';
 type RecordState = 'idle' | 'recording' | 'done';
 
-export const RecordScreen: React.FC = () => {
+export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const [mode, setMode] = useState<InputMode>('voice');
   const [recordState, setRecordState] = useState<RecordState>('idle');
@@ -192,7 +193,7 @@ export const RecordScreen: React.FC = () => {
         shimmerLoopRef.current.stop();
         shimmerLoopRef.current = null;
       }
-      const found = IMAGE_STYLES.find(s => s.id === styleId);
+      const found = ART_STYLES.find(s => s.id === styleId);
       setGeneratedImageUri(found?.uri ?? null);
       setGeneratedStyleId(styleId);
       setImageGenState('done');
@@ -256,24 +257,24 @@ export const RecordScreen: React.FC = () => {
           ]}
           pointerEvents="none"
         >
-          <Text style={styles.saveToastText}>✅  Dream saved!</Text>
+          <Text style={styles.saveToastText}><Icon name="check" size={16} color={colors.mintGreen} />  Dream saved!</Text>
         </RNAnimated.View>
         <ScrollView
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.title}>Record Dream</Text>
-            <Text style={styles.subtitle}>
-              {mode === 'voice'
-                ? recordState === 'idle' ? 'Tap the mic and start speaking'
-                  : recordState === 'recording' ? 'Listening...'
-                    : 'Recording complete — review & save'
-                : 'Describe your dream in your own words'}
-            </Text>
-          </View>
+          {/* Close button (top-left) */}
+          {onClose && (
+            <TouchableOpacity
+              style={styles.closeBtn}
+              onPress={onClose}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Icon name="close" size={20} color={colors.textSecondary} />
+            </TouchableOpacity>
+          )}
 
           {/* Mode Switcher */}
           <View style={styles.modeSwitcher}>
@@ -283,7 +284,7 @@ export const RecordScreen: React.FC = () => {
                 style={[styles.modeBtn, mode === m && styles.modeBtnActive]}
                 onPress={() => switchMode(m)}
               >
-                <Text style={styles.modeBtnIcon}>{m === 'voice' ? '🎙️' : '✍️'}</Text>
+                <Text style={styles.modeBtnIcon}>{m === 'voice' ? <Icon name="mic" size={18} color={mode === m ? colors.mintGreen : colors.textTertiary} /> : <Icon name="pen" size={18} color={mode === m ? colors.mintGreen : colors.textTertiary} />}</Text>
                 <Text style={[styles.modeBtnText, mode === m && styles.modeBtnTextActive]}>
                   {m === 'voice' ? 'Voice' : 'Type'}
                 </Text>
@@ -305,7 +306,7 @@ export const RecordScreen: React.FC = () => {
                   recordState === 'recording' && styles.recordRingActive]}>
                     <View style={[styles.recordInner, recordState === 'recording' && styles.recordInnerActive]}>
                       <Text style={styles.recordIcon}>
-                        {recordState === 'recording' ? '⏹' : '🎙️'}
+                        {recordState === 'recording' ? <Icon name="close" size={44} color="#e74c3c" /> : <Icon name="mic" size={44} color={colors.mintGreen} />}
                       </Text>
                     </View>
                   </Animated.View>
@@ -338,7 +339,7 @@ export const RecordScreen: React.FC = () => {
               {(recordState === 'recording' || recordState === 'done') && (
                 <GlassCard style={styles.transcriptCard}>
                   <Text style={styles.transcriptLabel}>
-                    {recordState === 'recording' ? '🔴  Live Transcript' : '📝  Transcript — tap to edit'}
+                    {recordState === 'recording' ? <><View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#e74c3c', marginRight: 6 }} />{'  Live Transcript'}</> : <><Icon name="pen" size={14} color={colors.mintGreen} />{'  Transcript — tap to edit'}</>}
                   </Text>
                   <TextInput
                     style={styles.transcriptInput}
@@ -358,7 +359,7 @@ export const RecordScreen: React.FC = () => {
           {/* ── TEXT MODE ── */}
           {mode === 'text' && (
             <GlassCard style={styles.transcriptCard}>
-              <Text style={styles.transcriptLabel}>✍️  Your dream</Text>
+              <Text style={styles.transcriptLabel}><Icon name="pen" size={14} color={colors.mintGreen} />  Your dream</Text>
               <TextInput
                 style={[styles.transcriptInput, { minHeight: 180 }]}
                 value={transcript}
@@ -451,8 +452,8 @@ export const RecordScreen: React.FC = () => {
                   onPress={() => setStyleDropdownOpen(v => !v)}
                 >
                   <Text style={styles.dropdownTriggerText}>
-                    {IMAGE_STYLES.find(s => s.id === imageStyleId)?.emoji}{' '}
-                    {IMAGE_STYLES.find(s => s.id === imageStyleId)?.label}
+                    <Icon name={ART_STYLES.find(s => s.id === imageStyleId)?.icon ?? 'image'} size={16} color={colors.mintGreen} />{' '}
+                    {ART_STYLES.find(s => s.id === imageStyleId)?.label}
                   </Text>
                   <Text style={styles.dropdownArrow}>{styleDropdownOpen ? '▲' : '▼'}</Text>
                 </TouchableOpacity>
@@ -460,14 +461,14 @@ export const RecordScreen: React.FC = () => {
                 {/* Dropdown options */}
                 {styleDropdownOpen && (
                   <View style={styles.dropdownList}>
-                    {IMAGE_STYLES.map(s => (
+                    {ART_STYLES.map(s => (
                       <TouchableOpacity
                         key={s.id}
                         style={[styles.dropdownItem, imageStyleId === s.id && styles.dropdownItemActive]}
                         onPress={() => { setImageStyleId(s.id); setStyleDropdownOpen(false); }}
                       >
                         <Text style={styles.dropdownItemText}>
-                          {s.emoji}  {s.label}
+                          <Icon name={s.icon} size={16} color={colors.mintGreen} />  {s.label}
                         </Text>
                         {imageStyleId === s.id && <Text style={styles.dropdownCheck}>✓</Text>}
                       </TouchableOpacity>
@@ -483,10 +484,10 @@ export const RecordScreen: React.FC = () => {
                   >
                     <Text style={styles.generateBtnText}>
                       {imageGenState === 'idle'
-                        ? '✨ Generate AI Image'
+                        ? 'Generate AI Image'
                         : imageStyleId !== generatedStyleId
-                          ? `🔄 Regenerate in ${IMAGE_STYLES.find(s => s.id === imageStyleId)?.label}`
-                          : '🔄 Regenerate'}
+                          ? `Regenerate in ${ART_STYLES.find(s => s.id === imageStyleId)?.label}`
+                          : 'Regenerate'}
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -495,7 +496,7 @@ export const RecordScreen: React.FC = () => {
                 {imageGenState === 'loading' && (
                   <View style={styles.imageLoadingBox}>
                     <RNAnimated.View style={[styles.imageLoadingInner, { opacity: shimmerAnim }]}>
-                      <Text style={styles.imageLoadingIcon}>🌙</Text>
+                      <Icon name="moon" size={44} color={colors.mintGreen} />
                       <Text style={styles.imageLoadingText}>Painting your dream...</Text>
                     </RNAnimated.View>
                   </View>
@@ -511,12 +512,12 @@ export const RecordScreen: React.FC = () => {
                     />
                     <View style={styles.aiImageMeta}>
                       <Text style={styles.aiImageLabel}>
-                        {IMAGE_STYLES.find(s => s.id === generatedStyleId)?.emoji}{'  '}
-                        {IMAGE_STYLES.find(s => s.id === generatedStyleId)?.label} Style
+                        <Icon name={ART_STYLES.find(s => s.id === generatedStyleId)?.icon ?? 'image'} size={14} color={colors.textSecondary} />{'  '}
+                        {ART_STYLES.find(s => s.id === generatedStyleId)?.label} Style
                       </Text>
                       {imageStyleId !== generatedStyleId && (
                         <Text style={styles.aiImagePending}>
-                          ← tap Regenerate for {IMAGE_STYLES.find(s => s.id === imageStyleId)?.label}
+                          ← tap Regenerate for {ART_STYLES.find(s => s.id === imageStyleId)?.label}
                         </Text>
                       )}
                     </View>
@@ -529,7 +530,7 @@ export const RecordScreen: React.FC = () => {
                   onPress={saveDream}
                   disabled={isSaving}
                 >
-                  <Text style={styles.saveBtnText}>💾 Save Dream</Text>
+                  <Text style={styles.saveBtnText}><Icon name="check" size={16} color={colors.deepTeal} /> Save Dream</Text>
                 </TouchableOpacity>
               </GlassCard>
             </View>
@@ -544,7 +545,16 @@ export const RecordScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.lg, paddingTop: spacing.xxl },
+  closeBtn: {
+    alignSelf: 'flex-start',
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center', justifyContent: 'center',
+    marginTop: 16,
+    marginBottom: 12,
+  },
+  content: { padding: spacing.lg, paddingTop: spacing.xl },
 
   header: { marginBottom: spacing.lg },
   title: { ...typography.h1, color: colors.textPrimary, marginBottom: spacing.xs },
@@ -626,12 +636,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   moodBtnActive: {
-    backgroundColor: colors.softTeal,
+    backgroundColor: 'rgba(181,217,168,0.15)',
     borderWidth: 1.5, borderColor: colors.mintGreen,
   },
   moodEmoji: { fontSize: 24 },
   moodLabel: { ...typography.small, color: colors.textTertiary, marginTop: 4 },
-  moodLabelActive: { color: colors.textPrimary },
+  moodLabelActive: { color: colors.mintGreen, fontWeight: '700' as const },
 
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg },
   tag: {

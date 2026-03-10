@@ -1,9 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, typography, borderRadius } from '../theme';
 import { GlassCard } from '../components/GlassCard';
 import { FloatingParticles } from '../components/FloatingParticles';
+import Icon from '../components/Icon';
 
 const DUMMY_NOTIFICATIONS = [
     { id: '1', type: 'like', text: 'River liked your dream "Fireflies in the Misty Forest"', time: '10m ago', unread: true },
@@ -13,12 +15,13 @@ const DUMMY_NOTIFICATIONS = [
 ];
 
 export const NotificationsScreen: React.FC = () => {
+    const insets = useSafeAreaInsets();
     const navigation = useNavigation();
 
     return (
         <View style={styles.container}>
             <FloatingParticles />
-            <View style={styles.header}>
+            <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
                 <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
                     <Text style={styles.backBtnText}>‹</Text>
                 </TouchableOpacity>
@@ -31,7 +34,7 @@ export const NotificationsScreen: React.FC = () => {
                     <GlassCard key={notif.id} style={[styles.notifCard, notif.unread ? styles.unreadCard : {}]}>
                         <View style={styles.iconContainer}>
                             <Text style={styles.iconText}>
-                                {notif.type === 'like' ? '💚' : notif.type === 'comment' ? '💬' : '⭐'}
+                                {notif.type === 'like' ? <Icon name="heart-fill" size={18} color="#e05252" /> : notif.type === 'comment' ? <Icon name="comment" size={18} color={colors.mintGreen} /> : <Icon name="star-fill" size={18} color="#c6b87e" />}
                             </Text>
                         </View>
                         <View style={styles.textContainer}>
@@ -56,7 +59,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingTop: 60,
+        paddingTop: 0,
         paddingBottom: 20,
         paddingHorizontal: spacing.lg,
     },

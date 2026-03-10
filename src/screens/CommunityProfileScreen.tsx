@@ -7,12 +7,14 @@ import {
     TouchableOpacity,
     Image,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/types';
 import { colors, spacing, typography, borderRadius } from '../theme';
 import { FloatingParticles } from '../components/FloatingParticles';
 import { GlassCard } from '../components/GlassCard';
+import Icon from '../components/Icon';
 
 // Dummy posts for user profile
 const USER_POSTS = [
@@ -35,6 +37,7 @@ const USER_POSTS = [
 ];
 
 export const CommunityProfileScreen: React.FC = () => {
+    const insets = useSafeAreaInsets();
     const route = useRoute<RouteProp<RootStackParamList, 'CommunityProfile'>>();
     const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
     const { username } = route.params;
@@ -44,7 +47,7 @@ export const CommunityProfileScreen: React.FC = () => {
             <FloatingParticles />
 
             {/* Header */}
-            <View style={styles.header}>
+            <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
                 <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
                     <Text style={styles.backBtnText}>‹</Text>
                 </TouchableOpacity>
@@ -87,8 +90,8 @@ export const CommunityProfileScreen: React.FC = () => {
                         <Text style={styles.postTitle}>{post.title}</Text>
                         <Text style={styles.dreamText} numberOfLines={2}>{post.dream}</Text>
                         <View style={styles.postFooter}>
-                            <Text style={styles.actionText}>💚 {post.likes}</Text>
-                            <Text style={styles.actionText}>💬 {post.comments}</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><Icon name="heart-fill" size={14} color="#e05252" /><Text style={styles.actionText}>{post.likes}</Text></View>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><Icon name="comment" size={14} color={colors.textSecondary} /><Text style={styles.actionText}>{post.comments}</Text></View>
                         </View>
                     </GlassCard>
                 ))}
@@ -108,7 +111,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingTop: 60,
+        paddingTop: 0,
         paddingBottom: 20,
         paddingHorizontal: spacing.lg,
     },

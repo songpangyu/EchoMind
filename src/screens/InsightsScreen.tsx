@@ -7,9 +7,11 @@ import {
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GlassCard } from '../components/GlassCard';
 import { FloatingParticles } from '../components/FloatingParticles';
 import { colors, spacing, typography, borderRadius } from '../theme';
+import Icon, { IconName } from '../components/Icon';
 
 const { width } = Dimensions.get('window');
 
@@ -44,6 +46,7 @@ const MONTH_LABELS = ['Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'N
 
 export const InsightsScreen: React.FC = () => {
   const [period, setPeriod] = useState<'week' | 'month'>('week');
+  const insets = useSafeAreaInsets();
   const maxDreams = Math.max(...WEEKLY_DATA.map(d => d.dreams));
   const maxMonthly = Math.max(...MONTHLY_DREAMS);
 
@@ -51,7 +54,7 @@ export const InsightsScreen: React.FC = () => {
     <View style={styles.container}>
       <FloatingParticles />
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
           <Text style={styles.title}>Insights</Text>
           <Text style={styles.subtitle}>Your dream patterns & trends</Text>
         </View>
@@ -59,13 +62,13 @@ export const InsightsScreen: React.FC = () => {
         {/* Stats Grid */}
         <View style={styles.statsGrid}>
           {[
-            { value: '24', label: 'Dreams', icon: '🌙' },
-            { value: '7.5h', label: 'Avg Sleep', icon: '😴' },
-            { value: '85%', label: 'Recall Rate', icon: '🧠' },
-            { value: '12', label: 'Day Streak', icon: '🔥' },
+            { value: '24', label: 'Dreams', icon: 'moon' as IconName },
+            { value: '7.5h', label: 'Avg Sleep', icon: 'sleep' as IconName },
+            { value: '85%', label: 'Recall Rate', icon: 'sparkle' as IconName },
+            { value: '12', label: 'Day Streak', icon: 'sparkles' as IconName },
           ].map((s, i) => (
             <GlassCard key={i} style={styles.statCard}>
-              <Text style={{ fontSize: 20 }}>{s.icon}</Text>
+              <Icon name={s.icon} size={20} color={colors.mintGreen} />
               <Text style={styles.statValue}>{s.value}</Text>
               <Text style={styles.statLabel}>{s.label}</Text>
             </GlassCard>
@@ -170,12 +173,12 @@ export const InsightsScreen: React.FC = () => {
         <GlassCard style={styles.chartCard}>
           <Text style={styles.chartTitle}>Personalized Discoveries</Text>
           {[
-            { icon: '🌊', title: 'Water dreams increasing', desc: 'You\'ve had 3x more water-related dreams this month. This may reflect emotional processing.' },
-            { icon: '🌙', title: 'Peak dream time: 3-5 AM', desc: 'Most of your vivid dreams occur during late REM cycles. Try sleeping by 11 PM.' },
-            { icon: '🦋', title: 'Recurring symbol: Butterflies', desc: 'Butterflies appeared in 4 dreams this month, often symbolizing transformation.' },
+            { icon: 'wave' as IconName, title: 'Water dreams increasing', desc: 'You\'ve had 3x more water-related dreams this month. This may reflect emotional processing.' },
+            { icon: 'moon' as IconName, title: 'Peak dream time: 3-5 AM', desc: 'Most of your vivid dreams occur during late REM cycles. Try sleeping by 11 PM.' },
+            { icon: 'flower' as IconName, title: 'Recurring symbol: Butterflies', desc: 'Butterflies appeared in 4 dreams this month, often symbolizing transformation.' },
           ].map((d, i) => (
             <View key={i} style={styles.discoveryItem}>
-              <Text style={{ fontSize: 24 }}>{d.icon}</Text>
+              <Icon name={d.icon} size={24} color={colors.mintGreen} />
               <View style={styles.discoveryContent}>
                 <Text style={styles.discoveryTitle}>{d.title}</Text>
                 <Text style={styles.discoveryDesc}>{d.desc}</Text>
@@ -187,7 +190,7 @@ export const InsightsScreen: React.FC = () => {
         {/* Alert */}
         <GlassCard style={[styles.chartCard, styles.alertCard]}>
           <View style={styles.alertRow}>
-            <Text style={{ fontSize: 20 }}>⚠️</Text>
+            <Icon name="warning" size={20} color={colors.warning} />
             <View style={{ flex: 1, marginLeft: spacing.sm }}>
               <Text style={styles.alertTitle}>Sleep Alert</Text>
               <Text style={styles.alertDesc}>
@@ -211,7 +214,7 @@ export const InsightsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   scrollView: { flex: 1 },
-  header: { padding: spacing.lg, paddingTop: spacing.xxl },
+  header: { padding: spacing.lg, paddingTop: spacing.md },
   title: { ...typography.h1, color: colors.textPrimary, marginBottom: spacing.xs },
   subtitle: { ...typography.body, color: colors.textSecondary },
   statsGrid: {
@@ -226,9 +229,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface, borderRadius: borderRadius.md, padding: 4,
   },
   periodBtn: { flex: 1, paddingVertical: spacing.sm, alignItems: 'center', borderRadius: borderRadius.sm },
-  periodBtnActive: { backgroundColor: colors.softTeal },
+  periodBtnActive: { backgroundColor: colors.mintGreen },
   periodText: { ...typography.caption, color: colors.textTertiary },
-  periodTextActive: { color: colors.textPrimary, fontWeight: '600' },
+  periodTextActive: { color: colors.deepTeal, fontWeight: '700' as const },
   chartCard: { marginHorizontal: spacing.lg, marginBottom: spacing.lg },
   chartTitle: { ...typography.h3, color: colors.textPrimary, marginBottom: spacing.md },
   barChart: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 140 },

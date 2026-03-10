@@ -12,11 +12,13 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { GlassCard } from '../components/GlassCard';
 import { FloatingParticles } from '../components/FloatingParticles';
 import { colors, spacing, typography, borderRadius } from '../theme';
+import Icon from '../components/Icon';
 import { TabParamList, RootStackParamList } from '../navigation/types';
 
 // ─── My new shared post ────────────────────────────────────────────────────────
@@ -79,6 +81,7 @@ export const CommunityScreen: React.FC = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const justShared = (route.params as any)?.shared === true;
 
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState('Trending');
 
   // Generic Toast State
@@ -204,6 +207,7 @@ export const CommunityScreen: React.FC = () => {
           </View>
           <View style={styles.moodPill}>
             <Text style={styles.moodEmoji}>{post.mood}</Text>
+            <Text style={styles.moodLabel}>{post.mood === '😌' ? 'Peaceful' : post.mood === '😊' ? 'Happy' : post.mood === '😰' ? 'Anxious' : post.mood === '😢' ? 'Sad' : post.mood === '😴' ? 'Calm' : post.mood === '😁' ? 'Joyful' : 'Dreamy'}</Text>
           </View>
         </View>
 
@@ -236,12 +240,18 @@ export const CommunityScreen: React.FC = () => {
 
         <View style={styles.postFooter}>
           <TouchableOpacity style={styles.actionBtn} onPress={() => toggleLike(post.id, isLiked)}>
-            <Text style={[styles.actionText, isLiked && styles.actionTextActive]}>
-              {isLiked ? '❤️' : '🤍'} {post.likes + (isLiked && !post.liked ? 1 : (!isLiked && post.liked ? -1 : 0))}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Icon name={isLiked ? 'heart-fill' : 'heart'} size={16} color={isLiked ? '#e05252' : colors.textSecondary} />
+              <Text style={[styles.actionText, isLiked && styles.actionTextActive]}>
+                {post.likes + (isLiked && !post.liked ? 1 : (!isLiked && post.liked ? -1 : 0))}
+              </Text>
+            </View>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionBtn} onPress={() => setSelectedPostId(post.id)}>
-            <Text style={styles.actionText}>💬 {post.comments}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Icon name="comment" size={16} color={colors.textSecondary} />
+              <Text style={styles.actionText}>{post.comments}</Text>
+            </View>
           </TouchableOpacity>
           <View style={{ flex: 1 }} />
         </View>
@@ -284,10 +294,8 @@ export const CommunityScreen: React.FC = () => {
         </RNAnimated.View>
       )}
 
-      <View style={styles.header}>
-        <Text style={styles.title}>Community</Text>
-        <Text style={styles.subtitle}>Explore shared dreams</Text>
-      </View>
+      {/* Header removed; top spacing via insets */}
+      <View style={{ height: insets.top + 8 }} />
 
       {/* Tabs */}
       <View style={styles.tabRow}>
@@ -383,7 +391,7 @@ export const CommunityScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  header: { padding: spacing.lg, paddingTop: spacing.xxl },
+  header: { padding: spacing.lg, paddingTop: spacing.md },
   title: { ...typography.h1, color: colors.textPrimary, marginBottom: spacing.xs },
   subtitle: { ...typography.body, color: colors.textSecondary },
 
@@ -404,9 +412,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(26,47,47,0.6)', borderRadius: borderRadius.md, padding: 4,
   },
   tab: { flex: 1, paddingVertical: spacing.sm, alignItems: 'center', borderRadius: borderRadius.sm },
-  tabActive: { backgroundColor: colors.surface },
+  tabActive: { backgroundColor: colors.mintGreen },
   tabText: { ...typography.caption, color: colors.textTertiary },
-  tabTextActive: { color: colors.textPrimary, fontWeight: '600' },
+  tabTextActive: { color: colors.deepTeal, fontWeight: '700' as const },
   scrollView: { flex: 1 },
 
   postCard: { marginHorizontal: spacing.lg, marginBottom: spacing.md, padding: spacing.md },
@@ -437,10 +445,13 @@ const styles = StyleSheet.create({
   postTime: { ...typography.small, color: colors.textTertiary },
 
   moodPill: {
-    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, backgroundColor: 'rgba(20,40,40,0.8)',
-    justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)',
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20,
+    backgroundColor: 'rgba(181,217,168,0.15)',
+    borderWidth: 1, borderColor: 'rgba(181,217,168,0.3)',
   },
-  moodEmoji: { fontSize: 14 },
+  moodEmoji: { fontSize: 12 },
+  moodLabel: { ...typography.small, color: colors.mintGreen, fontWeight: '600' as const },
 
   postTitle: { ...typography.h3, color: colors.textPrimary, marginBottom: spacing.xs },
   postImage: { width: '100%', height: 180, borderRadius: borderRadius.md, marginBottom: spacing.sm },

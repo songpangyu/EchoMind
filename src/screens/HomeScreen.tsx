@@ -7,20 +7,22 @@ import {
   Image,
   TouchableOpacity,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { GlassCard } from '../components/GlassCard';
 import { FloatingParticles } from '../components/FloatingParticles';
 import { colors, spacing, typography, borderRadius } from '../theme';
 import { RootStackParamList } from '../navigation/types';
+import Icon, { IconName } from '../components/Icon';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-const getGreeting = () => {
+const getGreeting = (): { text: string; icon: IconName } => {
   const h = new Date().getHours();
-  if (h < 5) return { text: 'Good Night', emoji: '🌌' };
-  if (h < 12) return { text: 'Good Morning', emoji: '🌅' };
-  if (h < 18) return { text: 'Good Afternoon', emoji: '☀️' };
-  return { text: 'Good Evening', emoji: '🌙' };
+  if (h < 5) return { text: 'Good Night', icon: 'moon' };
+  if (h < 12) return { text: 'Good Morning', icon: 'sunrise' };
+  if (h < 18) return { text: 'Good Afternoon', icon: 'sun' };
+  return { text: 'Good Evening', icon: 'sunset' };
 };
 
 const formatDate = () =>
@@ -29,23 +31,23 @@ const formatDate = () =>
 // ─── Mock data ─────────────────────────────────────────────────────────────────
 const LAST_DREAM = {
   id: 'last',
-  title: 'Fireflies in the Misty Forest',
-  snippet: 'Walking through a misty forest with glowing fireflies. The trees whispered ancient melodies as moonlight filtered through the canopy...',
-  time: '6h ago',
-  mood: '😌',
-  moodLabel: 'Peaceful',
-  tags: ['Forest', 'Nature', 'Fireflies'],
-  image: 'https://images.unsplash.com/photo-1518241353330-0f7941c2d9b5?w=600&h=300&fit=crop',
+  title: 'Morning Sun in the Crystal Forest',
+  snippet: 'Walking through a bright forest where morning sunlight dances through fresh green leaves. The air felt incredibly crisp and uplifting...',
+  time: '2h ago',
+  mood: '😊',
+  moodLabel: 'Refreshing',
+  tags: ['Forest', 'Sunlight', 'Fresh'],
+  image: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=600&h=300&fit=crop',
 };
 
-const MOOD_TREND = [
-  { day: '7', emoji: '😌', color: '#7ec8a0', label: 'Peaceful' },
-  { day: '5', emoji: '😊', color: '#6dbf9e', label: 'Happy' },
-  { day: '4', emoji: '😰', color: '#e07777', label: 'Anxious' },
-  { day: '2', emoji: '😌', color: '#7ec8a0', label: 'Peaceful' },
-  { day: '1', emoji: '😢', color: '#7da8c8', label: 'Sad' },
-  { day: '28', emoji: '😊', color: '#6dbf9e', label: 'Happy' },
-  { day: '26', emoji: '😴', color: '#9b7ec8', label: 'Calm' },
+const MOOD_TREND: { day: string; icon: string; color: string; label: string }[] = [
+  { day: '7', icon: '😌', color: '#7ec8a0', label: 'Peaceful' },
+  { day: '5', icon: '😊', color: '#6dbf9e', label: 'Happy' },
+  { day: '4', icon: '😰', color: '#e07777', label: 'Anxious' },
+  { day: '2', icon: '😌', color: '#7ec8a0', label: 'Peaceful' },
+  { day: '1', icon: '😢', color: '#7da8c8', label: 'Sad' },
+  { day: '28', icon: '😊', color: '#6dbf9e', label: 'Happy' },
+  { day: '26', icon: '😴', color: '#9b7ec8', label: 'Calm' },
 ];
 
 const DAILY_REFLECTION = [
@@ -58,18 +60,18 @@ const DAILY_REFLECTION = [
   "Who showed up in your dream that surprised you?",
 ];
 
-const SUGGESTIONS = [
-  { icon: '🧘', label: 'Wind Down', text: 'Try 5 min of deep breathing before bed for more vivid dreams.' },
-  { icon: '📖', label: 'Read', text: 'Reading fiction before sleep tends to produce more narrative-rich dreams.' },
-  { icon: '🌿', label: 'Scent', text: 'Lavender on your pillow can improve REM depth and dream recall.' },
-  { icon: '🎵', label: 'Sounds', text: 'Ambient sounds during sleep may weave themselves into your dreamscape.' },
+const SUGGESTIONS: { icon: IconName; label: string; text: string }[] = [
+  { icon: 'meditate', label: 'Wind Down', text: 'Try 5 min of deep breathing before bed for more vivid dreams.' },
+  { icon: 'book', label: 'Read', text: 'Reading fiction before sleep tends to produce more narrative-rich dreams.' },
+  { icon: 'leaf', label: 'Scent', text: 'Lavender on your pillow can improve REM depth and dream recall.' },
+  { icon: 'music', label: 'Sounds', text: 'Ambient sounds during sleep may weave themselves into your dreamscape.' },
 ];
 
 const DREAM_STATS = {
   thisMonth: 14,
-  topMoodEmoji: '😌',
+  topMoodIcon: '😌',
   topMoodLabel: 'Peaceful',
-  topTagEmoji: '🌿',
+  topTagIcon: 'leaf' as IconName,
   topTagLabel: 'Nature',
   avgPerWeek: 3.5,
 };
@@ -77,6 +79,7 @@ const DREAM_STATS = {
 // ─── Component ────────────────────────────────────────────────────────────────
 export const HomeScreen: React.FC = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const insets = useSafeAreaInsets();
   const greeting = useMemo(getGreeting, []);
   const dateStr = useMemo(formatDate, []);
   const reflection = useMemo(() => DAILY_REFLECTION[new Date().getDate() % DAILY_REFLECTION.length], []);
@@ -87,8 +90,8 @@ export const HomeScreen: React.FC = () => {
       <ScrollView showsVerticalScrollIndicator={false}>
 
         {/* ── Header ── */}
-        <View style={styles.header}>
-          <Text style={styles.greeting}>{greeting.emoji}  {greeting.text}</Text>
+        <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+          <Text style={styles.greeting}><Icon name={greeting.icon} size={20} color={colors.mintGreen} />  {greeting.text}</Text>
           <Text style={styles.date}>{dateStr}</Text>
         </View>
 
@@ -102,9 +105,10 @@ export const HomeScreen: React.FC = () => {
               <Text style={styles.dreamTitle}>{LAST_DREAM.title}</Text>
               <Text style={styles.dreamSnippet} numberOfLines={2}>{LAST_DREAM.snippet}</Text>
               <View style={styles.dreamMeta}>
-                <Text style={styles.dreamTime}>🕐 {LAST_DREAM.time}</Text>
+                <Text style={styles.dreamTime}><Icon name="clock" size={12} color={colors.textTertiary} /> {LAST_DREAM.time}</Text>
                 <View style={styles.moodBadge}>
-                  <Text style={styles.moodText}>{LAST_DREAM.mood} {LAST_DREAM.moodLabel}</Text>
+                  <Text style={{ fontSize: 14 }}>{LAST_DREAM.mood}</Text>
+                  <Text style={styles.moodText}> {LAST_DREAM.moodLabel}</Text>
                 </View>
               </View>
               <View style={styles.tagRow}>
@@ -134,13 +138,13 @@ export const HomeScreen: React.FC = () => {
             <View style={styles.statDividerH} />
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
-                <Text style={styles.statEmoji}>{DREAM_STATS.topMoodEmoji}</Text>
+                <Text style={{ fontSize: 24 }}>{DREAM_STATS.topMoodIcon}</Text>
                 <Text style={styles.statMoodValue}>{DREAM_STATS.topMoodLabel}</Text>
                 <Text style={styles.statLabel}>Top mood</Text>
               </View>
               <View style={styles.statDividerV} />
               <View style={styles.statItem}>
-                <Text style={styles.statEmoji}>{DREAM_STATS.topTagEmoji}</Text>
+                <Icon name={DREAM_STATS.topTagIcon} size={24} color={colors.mintGreen} />
                 <Text style={styles.statMoodValue}>{DREAM_STATS.topTagLabel}</Text>
                 <Text style={styles.statLabel}>Most common theme</Text>
               </View>
@@ -157,12 +161,13 @@ export const HomeScreen: React.FC = () => {
             </Text>
             <View style={styles.symbolRow}>
               {[
-                { icon: '🌲', text: 'Nature = Freedom' },
-                { icon: '✨', text: 'Light = Clarity' },
-                { icon: '🌊', text: 'Water = Emotion' },
+                { icon: 'tree' as IconName, text: 'Nature = Freedom' },
+                { icon: 'sparkle' as IconName, text: 'Light = Clarity' },
+                { icon: 'wave' as IconName, text: 'Water = Emotion' },
               ].map((s, i) => (
                 <View key={i} style={styles.symbolChip}>
-                  <Text style={styles.symbolText}>{s.icon} {s.text}</Text>
+                  <Icon name={s.icon} size={14} color={colors.mintGreen} />
+                  <Text style={styles.symbolText}> {s.text}</Text>
                 </View>
               ))}
             </View>
@@ -186,7 +191,7 @@ export const HomeScreen: React.FC = () => {
             <View style={styles.trendRow}>
               {MOOD_TREND.map((m, i) => (
                 <View key={i} style={styles.trendItem}>
-                  <Text style={styles.trendEmoji}>{m.emoji}</Text>
+                  <Text style={{ fontSize: 18 }}>{m.icon}</Text>
                   <View style={[styles.trendBar, { backgroundColor: m.color }]} />
                   <Text style={styles.trendDay}>{m.day}</Text>
                 </View>
@@ -209,7 +214,7 @@ export const HomeScreen: React.FC = () => {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.suggestionsRow}>
             {SUGGESTIONS.map((s, i) => (
               <GlassCard key={i} style={styles.suggestionCard}>
-                <Text style={styles.suggestionIcon}>{s.icon}</Text>
+                <Icon name={s.icon} size={24} color={colors.mintGreen} />
                 <Text style={styles.suggestionLabel}>{s.label}</Text>
                 <Text style={styles.suggestionText}>{s.text}</Text>
               </GlassCard>
@@ -229,7 +234,7 @@ export const HomeScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
 
-  header: { paddingHorizontal: spacing.lg, paddingTop: spacing.xxl, paddingBottom: spacing.md },
+  header: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
   greeting: { ...typography.h1, color: colors.textPrimary, marginBottom: 4 },
   date: { ...typography.caption, color: colors.textSecondary },
 
@@ -242,6 +247,7 @@ const styles = StyleSheet.create({
   dreamMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
   dreamTime: { ...typography.caption, color: colors.textTertiary },
   moodBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: 'rgba(181,217,168,0.15)', borderRadius: borderRadius.full,
     borderWidth: 1, borderColor: colors.mintGreen, paddingHorizontal: spacing.md, paddingVertical: 3,
   },

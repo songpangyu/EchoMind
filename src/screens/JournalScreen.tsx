@@ -11,12 +11,14 @@ import {
   FlatList,
   Animated,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { GlassCard } from '../components/GlassCard';
 import { FloatingParticles } from '../components/FloatingParticles';
 import { colors, spacing, typography, borderRadius } from '../theme';
 import { RootStackParamList } from '../navigation/types';
+import Icon, { IconName } from '../components/Icon';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 type DreamEntry = {
@@ -30,11 +32,11 @@ type DreamEntry = {
   recordedTime: string;
   sleepPhase: string;
   snippet: string;
-  tags: { emoji: string; label: string }[];
+  tags: { label: string }[];
   mood: MoodKey;
   isStarred: boolean;
   voiceNoteMins: number;
-  icon: string; // emoji for calendar cell
+  icon: IconName;
 };
 
 type MoodKey = 'peaceful' | 'joyful' | 'anxious' | 'sad' | 'calm';
@@ -63,14 +65,14 @@ const FULL_MOON_DAYS: Record<string, number[]> = { '2026-02': [13], '2026-01': [
 
 // ─── Mock dreams ─────────────────────────────────────────────────────────────
 const ALL_DREAMS: DreamEntry[] = [
-  { id: 'd1', title: 'Forest Lake Under Moonlight', isLucid: true, date: '2026-02-10', day: 10, month: 2, year: 2026, recordedTime: '07:15 AM', sleepPhase: 'Deep Sleep', snippet: 'Walking into a forest bathed in moonlight, with towering trees. After passing through the woods, I found a calm lake reflecting stars...', tags: [{ emoji: '🌲', label: 'Forest' }, { emoji: '🏞', label: 'Lake' }], mood: 'peaceful', isStarred: true, voiceNoteMins: 8, icon: '🌲' },
-  { id: 'd2', title: 'Journey Floating in the Purple Nebula', isLucid: false, date: '2026-02-09', day: 9, month: 2, year: 2026, recordedTime: '06:45 AM', sleepPhase: 'REM Sleep', snippet: 'Found myself floating in a purple nebula, surrounded by glowing stardust. Reaching out, I touched a comet...', tags: [{ emoji: '🌌', label: 'Space' }, { emoji: '✨', label: 'Stars' }], mood: 'joyful', isStarred: false, voiceNoteMins: 0, icon: '🌌' },
-  { id: 'd3', title: 'Deep Ocean City of Light', isLucid: true, date: '2026-02-09', day: 9, month: 2, year: 2026, recordedTime: '04:10 AM', sleepPhase: 'Deep Sleep', snippet: 'Diving into the deep sea I discovered a city built entirely of iridescent bubbles. Strange citizens waved...', tags: [{ emoji: '🌊', label: 'Ocean' }, { emoji: '💡', label: 'Light' }], mood: 'anxious', isStarred: true, voiceNoteMins: 4, icon: '🌊' },
-  { id: 'd4', title: 'The Talking Ancient Forest', isLucid: false, date: '2026-02-07', day: 7, month: 2, year: 2026, recordedTime: '07:30 AM', sleepPhase: 'REM Sleep', snippet: 'Walking into an ancient forest where each tree had its own soul. The bark formed faces that whispered...', tags: [{ emoji: '🌿', label: 'Forest' }, { emoji: '🗣', label: 'Ancient' }], mood: 'calm', isStarred: true, voiceNoteMins: 0, icon: '🌿' },
-  { id: 'd5', title: 'Flying Over Neon City', isLucid: true, date: '2026-02-06', day: 6, month: 2, year: 2026, recordedTime: '06:00 AM', sleepPhase: 'REM Sleep', snippet: 'Soaring above a neon-lit metropolis with wings of light...', tags: [{ emoji: '🌃', label: 'City' }, { emoji: '🪽', label: 'Flying' }], mood: 'joyful', isStarred: false, voiceNoteMins: 0, icon: '🌃' },
-  { id: 'd6', title: 'Time Loop at the Train Station', isLucid: false, date: '2026-02-04', day: 4, month: 2, year: 2026, recordedTime: '05:50 AM', sleepPhase: 'REM Sleep', snippet: 'Caught in a loop at a rainy station, the same train kept arriving with different passengers each time...', tags: [{ emoji: '🚂', label: 'Travel' }, { emoji: '⏳', label: 'Time' }], mood: 'anxious', isStarred: false, voiceNoteMins: 3, icon: '🚂' },
-  { id: 'd7', title: 'Starlight Garden', isLucid: false, date: '2026-02-02', day: 2, month: 2, year: 2026, recordedTime: '07:00 AM', sleepPhase: 'Light Sleep', snippet: 'A garden where every flower was made of crystallised starlight...', tags: [{ emoji: '🌷', label: 'Garden' }, { emoji: '⭐', label: 'Stars' }], mood: 'peaceful', isStarred: true, voiceNoteMins: 0, icon: '🌷' },
-  { id: 'd8', title: 'The Golden Mountain Dream', isLucid: false, date: '2025-02-14', day: 14, month: 2, year: 2025, recordedTime: '06:30 AM', sleepPhase: 'REM Sleep', snippet: 'Climbing a mountain made entirely of gold that shifted under every step...', tags: [{ emoji: '⛰', label: 'Mountain' }, { emoji: '✨', label: 'Gold' }], mood: 'joyful', isStarred: false, voiceNoteMins: 0, icon: '⛰' },
+  { id: 'd1', title: 'Forest Lake Under Moonlight', isLucid: true, date: '2026-02-10', day: 10, month: 2, year: 2026, recordedTime: '07:15 AM', sleepPhase: 'Deep Sleep', snippet: 'Walking into a forest bathed in moonlight, with towering trees. After passing through the woods, I found a calm lake reflecting stars...', tags: [{ label: 'Forest' }, { label: 'Lake' }], mood: 'peaceful', isStarred: true, voiceNoteMins: 8, icon: 'tree' },
+  { id: 'd2', title: 'Journey Floating in the Purple Nebula', isLucid: false, date: '2026-02-09', day: 9, month: 2, year: 2026, recordedTime: '06:45 AM', sleepPhase: 'REM Sleep', snippet: 'Found myself floating in a purple nebula, surrounded by glowing stardust. Reaching out, I touched a comet...', tags: [{ label: 'Space' }, { label: 'Stars' }], mood: 'joyful', isStarred: false, voiceNoteMins: 0, icon: 'galaxy' },
+  { id: 'd3', title: 'Deep Ocean City of Light', isLucid: true, date: '2026-02-09', day: 9, month: 2, year: 2026, recordedTime: '04:10 AM', sleepPhase: 'Deep Sleep', snippet: 'Diving into the deep sea I discovered a city built entirely of iridescent bubbles. Strange citizens waved...', tags: [{ label: 'Ocean' }, { label: 'Light' }], mood: 'anxious', isStarred: true, voiceNoteMins: 4, icon: 'wave' },
+  { id: 'd4', title: 'The Talking Ancient Forest', isLucid: false, date: '2026-02-07', day: 7, month: 2, year: 2026, recordedTime: '07:30 AM', sleepPhase: 'REM Sleep', snippet: 'Walking into an ancient forest where each tree had its own soul. The bark formed faces that whispered...', tags: [{ label: 'Forest' }, { label: 'Ancient' }], mood: 'calm', isStarred: true, voiceNoteMins: 0, icon: 'leaf' },
+  { id: 'd5', title: 'Flying Over Neon City', isLucid: true, date: '2026-02-06', day: 6, month: 2, year: 2026, recordedTime: '06:00 AM', sleepPhase: 'REM Sleep', snippet: 'Soaring above a neon-lit metropolis with wings of light...', tags: [{ label: 'City' }, { label: 'Flying' }], mood: 'joyful', isStarred: false, voiceNoteMins: 0, icon: 'city' },
+  { id: 'd6', title: 'Time Loop at the Train Station', isLucid: false, date: '2026-02-04', day: 4, month: 2, year: 2026, recordedTime: '05:50 AM', sleepPhase: 'REM Sleep', snippet: 'Caught in a loop at a rainy station, the same train kept arriving with different passengers each time...', tags: [{ label: 'Travel' }, { label: 'Time' }], mood: 'anxious', isStarred: false, voiceNoteMins: 3, icon: 'train' },
+  { id: 'd7', title: 'Starlight Garden', isLucid: false, date: '2026-02-02', day: 2, month: 2, year: 2026, recordedTime: '07:00 AM', sleepPhase: 'Light Sleep', snippet: 'A garden where every flower was made of crystallised starlight...', tags: [{ label: 'Garden' }, { label: 'Stars' }], mood: 'peaceful', isStarred: true, voiceNoteMins: 0, icon: 'flower' },
+  { id: 'd8', title: 'The Golden Mountain Dream', isLucid: false, date: '2025-02-14', day: 14, month: 2, year: 2025, recordedTime: '06:30 AM', sleepPhase: 'REM Sleep', snippet: 'Climbing a mountain made entirely of gold that shifted under every step...', tags: [{ label: 'Mountain' }, { label: 'Gold' }], mood: 'joyful', isStarred: false, voiceNoteMins: 0, icon: 'mountain' },
 ];
 
 const NIGHT_TIMELINE = [
@@ -93,6 +95,7 @@ const getMonthKey = (y: number, m: number) => `${y}-${String(m).padStart(2, '0')
 // ─── Main Component ──────────────────────────────────────────────────────────
 export const JournalScreen: React.FC = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const insets = useSafeAreaInsets();
 
   // View state
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
@@ -343,20 +346,21 @@ export const JournalScreen: React.FC = () => {
           {/* Top: icon + content */}
           <View style={styles.cardTop}>
             <View style={styles.cardThumb}>
-              <Text style={{ fontSize: 28 }}>{dream.icon}</Text>
+              <Icon name={dream.icon} size={28} color={colors.mintGreen} />
             </View>
             <View style={{ flex: 1 }}>
               <View style={styles.titleRow}>
                 <Text style={styles.dreamTitle} numberOfLines={1}>{dream.title}</Text>
                 {(() => {
-                  const moodEmojis: Record<MoodKey, string> = {
+                  const MOOD_EMOJI: Record<MoodKey, string> = {
                     peaceful: '😌', joyful: '😊', anxious: '😰',
                     sad: '😢', calm: '😴',
                   };
                   return (
-                    <View style={[styles.moodPill, { paddingHorizontal: 6, paddingVertical: 2 }]}>
-                      <Text style={[styles.moodPillText, { fontSize: 10 }]}>
-                        {moodEmojis[dream.mood]} {MOOD_META[dream.mood]?.label}
+                    <View style={styles.moodPill}>
+                      <Text style={{ fontSize: 12 }}>{MOOD_EMOJI[dream.mood]}</Text>
+                      <Text style={[styles.moodPillText, { fontSize: 10, marginLeft: 4 }]}>
+                        {MOOD_META[dream.mood]?.label}
                       </Text>
                     </View>
                   );
@@ -479,7 +483,7 @@ export const JournalScreen: React.FC = () => {
 
       {/* ── Multi-select top bar ── */}
       {multiSelectMode && (
-        <View style={styles.multiSelectBar}>
+        <View style={[styles.multiSelectBar, { paddingTop: insets.top }]}>
           <TouchableOpacity onPress={exitMultiSelect} style={styles.multiBtn}>
             <Text style={styles.multiBtnText}>Cancel</Text>
           </TouchableOpacity>
@@ -495,16 +499,16 @@ export const JournalScreen: React.FC = () => {
         </View>
       )}
 
-      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        {/* ── Header ── */}
-        <View style={styles.header}>
-          <Text style={styles.pageTitle}>Dream Journal</Text>
-        </View>
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingTop: insets.top + 8 }}>
+        {/* ── Header removed ── */}
+
+
 
         {/* ── Search ── */}
         <View style={styles.searchWrap}>
           <View style={styles.searchBox}>
-            <Text style={{ fontSize: 16 }}>🔍</Text>
+            <Icon name="search" size={16} color={colors.textTertiary} />
             <TextInput
               style={styles.searchInput}
               placeholder="Search dreams, tags..."
@@ -515,12 +519,11 @@ export const JournalScreen: React.FC = () => {
             />
             {searchText.length > 0 && (
               <TouchableOpacity onPress={() => setSearchText('')}>
-                <Text style={{ fontSize: 16, color: colors.textTertiary }}>✕</Text>
+                <Icon name="close" size={16} color={colors.textTertiary} />
               </TouchableOpacity>
             )}
           </View>
         </View>
-
         {/* ── Stats bar ── */}
         <GlassCard style={styles.statsCard}>
           <View style={styles.statsRow}>
@@ -545,10 +548,20 @@ export const JournalScreen: React.FC = () => {
           {(['list', 'calendar'] as const).map(mode => (
             <TouchableOpacity
               key={mode}
-              style={[styles.toggleBtn, viewMode === mode && styles.toggleBtnActive]}
+              style={[
+                styles.toggleBtn,
+                viewMode === mode && styles.toggleBtnActive,
+                { flexDirection: 'row', justifyContent: 'center', gap: 6 }
+              ]}
               onPress={() => { setViewMode(mode); setSelectedDay(null); }}
               activeOpacity={0.7}
             >
+              <Icon
+                name={mode === 'list' ? 'list' : 'calendar'}
+                size={16}
+                color={viewMode === mode ? colors.deepTeal : colors.textTertiary}
+                strokeWidth={2}
+              />
               <Text style={[styles.toggleText, viewMode === mode && styles.toggleTextActive]}>
                 {mode === 'list' ? 'List' : 'Calendar'}
               </Text>
@@ -688,7 +701,7 @@ export const JournalScreen: React.FC = () => {
 
             {searchText.trim() !== '' && filteredDreams.length === 0 ? (
               <GlassCard style={styles.emptyCard}>
-                <Text style={{ fontSize: 36, textAlign: 'center', marginBottom: spacing.sm }}>🔍</Text>
+                <Icon name="search" size={36} color={colors.textTertiary} />
                 <Text style={styles.emptyText}>No dreams found for "{searchText}"</Text>
               </GlassCard>
             ) : (
@@ -745,7 +758,7 @@ export const JournalScreen: React.FC = () => {
             {/* NIGHT TIMELINE (below today's dreams) */}
             <GlassCard style={styles.timelineCard}>
               <View style={styles.timelineHeader}>
-                <Text style={{ fontSize: 18 }}>🌙</Text>
+                <Icon name="moon" size={18} color={colors.mintGreen} />
                 <Text style={styles.timelineTitle}>NIGHT TIMELINE · FEB 10</Text>
               </View>
               {NIGHT_TIMELINE.map((item, i) => (
@@ -833,14 +846,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: colors.surface, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm,
     borderBottomWidth: 1, borderBottomColor: colors.deepTeal,
-    paddingTop: 60,
+    paddingTop: 0,
   },
   multiBtn: {},
   multiBtnText: { ...typography.body, color: colors.mintGreen, fontWeight: '600' },
   multiCount: { ...typography.body, color: colors.textPrimary },
 
   // Header
-  header: { paddingHorizontal: spacing.lg, paddingTop: spacing.xxl, paddingBottom: spacing.sm },
+  header: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.sm },
   pageTitle: { ...typography.h1, color: colors.textPrimary },
 
   // Search
@@ -848,7 +861,7 @@ const styles = StyleSheet.create({
   searchBox: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: colors.surface, borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: spacing.sm,
+    paddingHorizontal: spacing.md, paddingVertical: spacing.md, gap: spacing.sm,
     borderWidth: 1, borderColor: 'rgba(181,217,168,0.1)',
   },
   searchInput: { flex: 1, ...typography.body, color: colors.textPrimary },
@@ -868,9 +881,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface, borderRadius: borderRadius.md, padding: 4,
   },
   toggleBtn: { flex: 1, paddingVertical: spacing.sm, alignItems: 'center', borderRadius: borderRadius.sm },
-  toggleBtnActive: { backgroundColor: colors.softTeal },
+  toggleBtnActive: { backgroundColor: colors.mintGreen },
   toggleText: { ...typography.caption, color: colors.textTertiary },
-  toggleTextActive: { color: colors.textPrimary, fontWeight: '700' },
+  toggleTextActive: { color: colors.deepTeal, fontWeight: '700' as const },
 
   // Progress banner
   progressCard: { marginHorizontal: spacing.lg, marginBottom: spacing.md },
@@ -1041,11 +1054,12 @@ const styles = StyleSheet.create({
 
   // Mood pill (matches HomeScreen moodBadge)
   moodPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: 'rgba(181,217,168,0.15)',
     borderRadius: borderRadius.full,
     borderWidth: 1,
     borderColor: colors.mintGreen,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 3,
   },
   moodPillText: { ...typography.small, color: colors.mintGreen, fontWeight: '600' as const },

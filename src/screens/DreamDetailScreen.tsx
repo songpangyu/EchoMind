@@ -14,6 +14,7 @@ import { GlassCard } from '../components/GlassCard';
 import { FloatingParticles } from '../components/FloatingParticles';
 import { colors, spacing, typography, borderRadius } from '../theme';
 import { RootStackParamList } from '../navigation/types';
+import Icon, { IconName } from '../components/Icon';
 
 // ─── Mock dream data (in real app these come from route params / store) ────────
 const DREAM = {
@@ -30,12 +31,12 @@ const DREAM = {
 // ─── AI interpretation per perspective ────────────────────────────────────────
 type Perspective = 'life' | 'work' | 'relationship' | 'emotion' | 'spiritual';
 
-const PERSPECTIVES: { key: Perspective; label: string; emoji: string }[] = [
-    { key: 'life', label: 'Life', emoji: '🌱' },
-    { key: 'work', label: 'Work', emoji: '💼' },
-    { key: 'relationship', label: 'Relationship', emoji: '💞' },
-    { key: 'emotion', label: 'Emotion', emoji: '💭' },
-    { key: 'spiritual', label: 'Spiritual', emoji: '✨' },
+const PERSPECTIVES: { key: Perspective; label: string; icon: IconName }[] = [
+    { key: 'life', label: 'Life', icon: 'sprout' },
+    { key: 'work', label: 'Work', icon: 'briefcase' },
+    { key: 'relationship', label: 'Relationship', icon: 'heart-duo' },
+    { key: 'emotion', label: 'Emotion', icon: 'thought' },
+    { key: 'spiritual', label: 'Spiritual', icon: 'sparkles' },
 ];
 
 const AI_ANALYSIS: Record<Perspective, { summary: string; insights: string[]; suggestion: string }> = {
@@ -141,7 +142,7 @@ export const DreamDetailScreen: React.FC = () => {
                     </TouchableOpacity>
                     {/* Star button */}
                     <TouchableOpacity style={styles.starBtn} onPress={toggleStar} activeOpacity={0.8}>
-                        <Text style={styles.starBtnText}>{isStarred ? '⭐' : '☆'}</Text>
+                        <Icon name={isStarred ? 'star-fill' : 'star'} size={22} color={isStarred ? colors.mintGreen : colors.textPrimary} strokeWidth={2} />
                     </TouchableOpacity>
                     {/* Image style badge */}
                     <View style={styles.imageStyleBadge}>
@@ -169,7 +170,10 @@ export const DreamDetailScreen: React.FC = () => {
 
                     {/* ── Transcript ── */}
                     <GlassCard style={styles.card}>
-                        <Text style={styles.cardLabel}>📝 Dream Transcript</Text>
+                        <View style={styles.sectionHeaderRow}>
+                            <Icon name="note" size={20} color={colors.textPrimary} style={{ marginRight: 6 }} />
+                            <Text style={styles.cardLabel}>Dream Transcript</Text>
+                        </View>
                         <Text style={styles.transcriptText}>{DREAM.transcript}</Text>
                     </GlassCard>
 
@@ -214,23 +218,30 @@ export const DreamDetailScreen: React.FC = () => {
                             <View style={[styles.sleepSeg, { flex: 0.10, backgroundColor: '#8b9cba' }]} />
                         </View>
                         <View style={styles.sleepLegend}>
-                            {[
-                                { color: '#8b9cba', label: 'Awake' },
-                                { color: '#4a6fa5', label: 'Light' },
-                                { color: '#7ec8a0', label: 'Deep' },
-                            ].map((l, i) => (
-                                <View key={i} style={styles.legendItem}>
-                                    <View style={[styles.legendDot, { backgroundColor: l.color }]} />
-                                    <Text style={styles.legendText}>{l.label}</Text>
-                                </View>
-                            ))}
-                            <Text style={styles.remBadge}>REM 1h 48m</Text>
+                            <View style={styles.legendLeft}>
+                                {[
+                                    { color: '#8b9cba', label: 'Awake' },
+                                    { color: '#4a6fa5', label: 'Light' },
+                                    { color: '#7ec8a0', label: 'Deep' },
+                                ].map((l, i) => (
+                                    <View key={i} style={styles.legendItem}>
+                                        <View style={[styles.legendDot, { backgroundColor: l.color }]} />
+                                        <Text style={styles.legendText}>{l.label}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                            <View style={{ flex: 1, alignItems: 'flex-end', justifyContent: 'center' }}>
+                                <Text style={styles.remBadge}>REM 1h 48m</Text>
+                            </View>
                         </View>
                     </GlassCard>
 
                     {/* ── AI Analysis section ── */}
                     <View style={styles.analysisHeader}>
-                        <Text style={styles.analysisTitle}>🤖 AI Dream Analysis</Text>
+                        <View style={styles.sectionHeaderRow}>
+                            <Icon name="robot" size={24} color={colors.textPrimary} style={{ marginRight: 8 }} />
+                            <Text style={styles.analysisTitle}>AI Dream Analysis</Text>
+                        </View>
                         <Text style={styles.analysisSubtitle}>Choose a perspective</Text>
                     </View>
 
@@ -246,7 +257,7 @@ export const DreamDetailScreen: React.FC = () => {
                                 style={[styles.perspectiveBtn, perspective === p.key && styles.perspectiveBtnActive]}
                                 onPress={() => setPerspective(p.key)}
                             >
-                                <Text style={styles.perspectiveEmoji}>{p.emoji}</Text>
+                                <Icon name={p.icon} size={28} color={perspective === p.key ? colors.mintGreen : colors.textTertiary} />
                                 <Text style={[styles.perspectiveLabel, perspective === p.key && styles.perspectiveLabelActive]}>
                                     {p.label}
                                 </Text>
@@ -344,6 +355,7 @@ const styles = StyleSheet.create({
     // Transcript card
     card: { marginBottom: spacing.lg },
     cardLabel: { ...typography.caption, color: colors.mintGreen, fontWeight: '700', marginBottom: spacing.sm, letterSpacing: 0.4 },
+    sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },
     transcriptText: { ...typography.body, color: colors.textSecondary, lineHeight: 24, fontStyle: 'italic' },
 
     // Analysis header
@@ -404,7 +416,7 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(15,31,31,0.7)',
         alignItems: 'center', justifyContent: 'center',
     },
-    starBtnText: { fontSize: 22 },
+    starBtnText: { fontSize: 24, color: colors.background, fontWeight: '700' },
 
     // Toast
     toast: {
@@ -426,13 +438,14 @@ const styles = StyleSheet.create({
     },
     toastText: { ...typography.caption, color: colors.textPrimary, fontWeight: '600', textAlign: 'center' },
     healthHeader: { marginBottom: spacing.md },
-    healthTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: 2 },
+    healthTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: 4 },
     healthAppleBadge: {
-        backgroundColor: 'rgba(255,59,48,0.12)', borderRadius: borderRadius.full,
+        backgroundColor: 'rgba(255,107,107,0.1)', borderRadius: borderRadius.full,
         paddingHorizontal: spacing.sm, paddingVertical: 2,
-        borderWidth: 1, borderColor: 'rgba(255,59,48,0.3)',
+        borderWidth: 1, borderColor: 'rgba(255,107,107,0.2)',
+        marginTop: 2,
     },
-    healthAppleBadgeText: { ...typography.small, color: '#ff6b6b', fontWeight: '700' },
+    healthAppleBadgeText: { ...typography.small, color: '#ff8a8a', fontWeight: '600' },
     healthSubtitle: { ...typography.small, color: colors.textTertiary },
     healthScoreRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg, marginBottom: spacing.md },
     healthScoreCircle: {
@@ -448,7 +461,8 @@ const styles = StyleSheet.create({
     healthStatValue: { ...typography.caption, color: colors.textPrimary, fontWeight: '600' },
     sleepBarWrap: { flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden', marginBottom: spacing.sm },
     sleepSeg: { height: 10 },
-    sleepLegend: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
+    sleepLegend: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    legendLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
     legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     legendDot: { width: 8, height: 8, borderRadius: 4 },
     legendText: { ...typography.small, color: colors.textTertiary },
