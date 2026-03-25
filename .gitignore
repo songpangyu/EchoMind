@@ -40,4 +40,7 @@ yarn-error.log
 .venv/
 __pycache__/
 *.pyc
+.env
+.env.*
+!.env.backend.example
 .env.backend
