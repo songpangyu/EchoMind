@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   Platform,
   Animated as RNAnimated,
   Image,
-  Modal,
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -26,6 +26,17 @@ import { GlassCard } from '../components/GlassCard';
 import { FloatingParticles } from '../components/FloatingParticles';
 import { colors, spacing, typography, borderRadius } from '../theme';
 import Icon, { IconName } from '../components/Icon';
+import Voice, {
+  type SpeechErrorEvent,
+  type SpeechResultsEvent,
+} from '@react-native-voice/voice';
+import {
+  analyzeDreamAutofill,
+  createDream,
+  generateDreamImage,
+  updateDream,
+  type DreamMood,
+} from '../api/dreams';
 
 const ART_STYLES: { id: string; label: string; icon: IconName; uri: string }[] = [
   { id: 'realistic', label: 'Realistic', icon: 'image', uri: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=600&h=400&fit=crop' },
@@ -37,27 +48,91 @@ const ART_STYLES: { id: string; label: string; icon: IconName; uri: string }[] =
   { id: 'fantasy', label: 'Fantasy Art', icon: 'rainbow', uri: 'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=600&h=400&fit=crop' },
 ];
 
-const MOCK_WORDS = [
-  'I', 'was', 'walking', 'through', 'a', 'misty', 'forest', 'at', 'night.',
-  'The', 'trees', 'were', 'enormous,', 'like', 'ancient', 'guardians.',
-  'Tiny', 'glowing', 'fireflies', 'danced', 'around', 'me,', 'leaving',
-  'trails', 'of', 'golden', 'light.', 'I', 'could', 'hear', 'a', 'gentle',
-  'stream', 'nearby', 'and', 'the', 'air', 'smelled', 'like', 'pine', 'and', 'rain...',
+const QUICK_TAGS = [
+  'Forest',
+  'Ocean',
+  'Night',
+  'Flying',
+  'Falling',
+  'Home',
+  'School',
+  'Family',
+  'Animal',
+  'Water',
+  'Chasing',
+  'Mystery',
+  'Adventure',
+  'Fear',
+  'Peaceful',
+  'Lucid',
 ];
 
-const SUGGESTED_TAGS = ['Forest', 'Night', 'Fireflies', 'Nature', 'Peaceful', 'Water', 'Mystery'];
-
-// Mock AI auto-fill results
-const AI_AUTO_FILL = {
-  title: 'Fireflies in the Misty Forest',
-  moodIndex: 0, // Peaceful
-  tags: ['Forest', 'Night', 'Fireflies', 'Peaceful', 'Nature'],
-};
-
 const WAVE_HEIGHTS = [0.3, 0.7, 1, 0.5, 0.8, 0.4, 0.9, 0.6, 0.3, 0.75, 0.5, 0.85];
+const MOOD_OPTIONS: { emoji: string; label: string; value: DreamMood }[] = [
+  { emoji: '😌', label: 'Peaceful', value: 'peaceful' },
+  { emoji: '😊', label: 'Happy', value: 'happy' },
+  { emoji: '😢', label: 'Sad', value: 'sad' },
+  { emoji: '😰', label: 'Anxious', value: 'anxious' },
+  { emoji: '😴', label: 'Calm', value: 'calm' },
+];
 
 type InputMode = 'voice' | 'text';
-type RecordState = 'idle' | 'recording' | 'done';
+type RecordState = 'idle' | 'recording' | 'paused' | 'done';
+
+const TRANSCRIPTION_LOCALE = 'en-US';
+
+const normalizeSpeechText = (event?: SpeechResultsEvent) =>
+  event?.value?.find(item => item.trim().length > 0)?.trim() ?? '';
+
+const mapSpeechError = (event?: SpeechErrorEvent) => {
+  const message = event?.error?.message?.toLowerCase() ?? '';
+
+  if (message.includes('not authorized') || message.includes('permission')) {
+    return 'Microphone or speech recognition permission was denied. Please enable it in iOS Settings.';
+  }
+  if (message.includes('no speech')) {
+    return 'No speech was detected. Please try again and speak a bit closer to the microphone.';
+  }
+  if (message.includes('recognition in progress')) {
+    return 'Speech recognition is already running. Please stop the current recording first.';
+  }
+  if (message.includes('simulator')) {
+    return 'Speech recognition is limited in the iOS Simulator. A real device will be more reliable.';
+  }
+
+  return event?.error?.message ?? 'Speech recognition failed. Please try again.';
+};
+
+const mergeUniqueTags = (...tagGroups: string[][]) => {
+  const merged: string[] = [];
+  const seen = new Set<string>();
+
+  tagGroups.flat().forEach(tag => {
+    const cleaned = tag.trim();
+    if (!cleaned) {
+      return;
+    }
+    const key = cleaned.toLowerCase();
+    if (seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    merged.push(cleaned);
+  });
+
+  return merged;
+};
+
+const joinTranscriptParts = (...parts: string[]) =>
+  parts
+    .map(part => part.trim())
+    .filter(Boolean)
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const resolveTranscriptSnapshot = (combinedTranscript: string, accumulatedTranscript: string, liveTranscript: string) =>
+  combinedTranscript.trim() || joinTranscriptParts(accumulatedTranscript, liveTranscript);
 
 export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
@@ -75,6 +150,11 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
   const [aiAutoFilling, setAiAutoFilling] = useState(false);
   const [imageStyleId, setImageStyleId] = useState('realistic');
   const [styleDropdownOpen, setStyleDropdownOpen] = useState(false);
+  const [draftDreamId, setDraftDreamId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [speechAvailable, setSpeechAvailable] = useState<boolean | null>(null);
+  const [speechStatusText, setSpeechStatusText] = useState('Tap to start live transcription');
+  const [aiSuggestedTags, setAiSuggestedTags] = useState<string[]>([]);
 
   const shimmerAnim = useRef(new RNAnimated.Value(0)).current;
   const shimmerLoopRef = useRef<RNAnimated.CompositeAnimation | null>(null);
@@ -84,8 +164,15 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
   const scale = useSharedValue(1);
   const waveAnims = useRef(WAVE_HEIGHTS.map(() => new RNAnimated.Value(0.3))).current;
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const transcriptRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const wordIndexRef = useRef(0);
+  const transcriptValueRef = useRef('');
+  const accumulatedTranscriptRef = useRef('');
+  const liveTranscriptRef = useRef('');
+  const pendingStopActionRef = useRef<'pause' | 'done' | null>(null);
+  const recordStateRef = useRef<RecordState>('idle');
+  const selectedMoodValue = useMemo(
+    () => (selectedMood === null ? undefined : MOOD_OPTIONS[selectedMood]?.value),
+    [selectedMood]
+  );
 
   const startWave = () => {
     waveAnims.forEach((anim, i) => {
@@ -103,60 +190,374 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
     });
   };
 
-  const startTranscriptStream = () => {
-    wordIndexRef.current = 0;
-    setTranscript('');
-    transcriptRef.current = setInterval(() => {
-      if (wordIndexRef.current < MOCK_WORDS.length) {
-        const word = MOCK_WORDS[wordIndexRef.current++];
-        setTranscript(prev => prev ? `${prev} ${word}` : word);
-      } else {
-        if (transcriptRef.current) clearInterval(transcriptRef.current);
-      }
-    }, 180);
+  const stopTimer = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
   };
 
-  const startRecording = () => {
+  const finalizeRecording = (nextTranscript?: string) => {
+    stopTimer();
+    stopWave();
+    scale.value = withTiming(1);
+    setRecordState('done');
+    recordStateRef.current = 'done';
+    const finalTranscript = typeof nextTranscript === 'string'
+      ? nextTranscript
+      : resolveTranscriptSnapshot(
+          transcriptValueRef.current,
+          accumulatedTranscriptRef.current,
+          liveTranscriptRef.current,
+        );
+    accumulatedTranscriptRef.current = finalTranscript;
+    liveTranscriptRef.current = '';
+    pendingStopActionRef.current = null;
+    setTranscript(finalTranscript);
+    transcriptValueRef.current = finalTranscript;
+    setSpeechStatusText(
+      finalTranscript.trim()
+        ? 'Transcription complete. You can edit the text below.'
+        : 'No speech captured. You can retry or type your dream manually.'
+    );
+    setTimeout(() => setShowDetails(true), 250);
+  };
+
+  const setRecordingActive = () => {
     setRecordState('recording');
-    setTranscript('');
-    setTimer(0);
+    recordStateRef.current = 'recording';
     setShowDetails(false);
-    setImageGenState('idle');
-    setGeneratedImageUri(null);
-    setGeneratedStyleId(null);
-    wordIndexRef.current = 0;
+    setSpeechStatusText('Listening… Speak naturally and we will transcribe in real time.');
+    pendingStopActionRef.current = null;
     scale.value = withRepeat(withSequence(
       withTiming(1.12, { duration: 900 }),
       withTiming(1.0, { duration: 900 }),
     ), -1, false);
-    timerRef.current = setInterval(() => setTimer(t => t + 1), 1000);
-    setTimeout(startTranscriptStream, 800);
     startWave();
+    if (!timerRef.current) {
+      timerRef.current = setInterval(() => setTimer(t => t + 1), 1000);
+    }
   };
 
-  const stopRecording = () => {
-    setRecordState('done');
-    scale.value = withTiming(1);
-    if (timerRef.current) clearInterval(timerRef.current);
-    if (transcriptRef.current) clearInterval(transcriptRef.current);
+  const startRecording = async (options?: { resume?: boolean }) => {
+    const isResume = options?.resume === true;
+    try {
+      setErrorMessage(null);
+      setSpeechStatusText('Checking speech recognition…');
+
+      const available = Boolean(await Voice.isAvailable());
+      setSpeechAvailable(available);
+
+      if (!available) {
+        throw new Error('Speech recognition is not available on this device.');
+      }
+
+      await Voice.destroy().catch(() => undefined);
+      if (!isResume) {
+        accumulatedTranscriptRef.current = '';
+        liveTranscriptRef.current = '';
+        setTranscript('');
+        transcriptValueRef.current = '';
+        setTimer(0);
+        setImageGenState('idle');
+        setGeneratedImageUri(null);
+        setGeneratedStyleId(null);
+      }
+
+      setRecordingActive();
+      await Voice.start(TRANSCRIPTION_LOCALE);
+    } catch (error) {
+      stopTimer();
+      stopWave();
+      scale.value = withTiming(1);
+      setRecordState(isResume ? 'paused' : 'idle');
+      recordStateRef.current = isResume ? 'paused' : 'idle';
+      setSpeechStatusText(
+        isResume
+          ? 'Recording is paused. Resume to keep adding more detail.'
+          : 'Tap to start live transcription'
+      );
+      setErrorMessage(error instanceof Error ? error.message : 'Could not start live transcription.');
+    }
+  };
+
+  const pauseRecording = async () => {
+    try {
+      pendingStopActionRef.current = 'pause';
+      stopTimer();
+      stopWave();
+      scale.value = withTiming(1);
+      setSpeechStatusText('Pausing transcription…');
+      await Voice.stop();
+    } catch (error) {
+      const pausedTranscript = resolveTranscriptSnapshot(
+        transcriptValueRef.current,
+        accumulatedTranscriptRef.current,
+        liveTranscriptRef.current,
+      );
+      accumulatedTranscriptRef.current = pausedTranscript;
+      liveTranscriptRef.current = '';
+      transcriptValueRef.current = pausedTranscript;
+      setTranscript(pausedTranscript);
+      setRecordState('paused');
+      recordStateRef.current = 'paused';
+      pendingStopActionRef.current = null;
+      setSpeechStatusText('Recording paused. Resume to keep adding, or end when you are ready.');
+      setErrorMessage(error instanceof Error ? error.message : 'Could not stop recording cleanly.');
+    }
+  };
+
+  const finishRecording = async () => {
+    if (recordStateRef.current === 'paused') {
+      finalizeRecording();
+      return;
+    }
+
+    try {
+      pendingStopActionRef.current = 'done';
+      setSpeechStatusText('Finalizing transcription…');
+      await Voice.stop();
+    } catch (error) {
+      finalizeRecording();
+      setErrorMessage(error instanceof Error ? error.message : 'Could not stop recording cleanly.');
+    }
+  };
+
+  const resumeRecording = async () => {
+    await startRecording({ resume: true });
+  };
+
+  const resetComposer = async () => {
+    stopTimer();
     stopWave();
-    setTranscript(MOCK_WORDS.join(' '));
-    setTimeout(() => setShowDetails(true), 400);
+    scale.value = withTiming(1);
+    setRecordState('idle');
+    recordStateRef.current = 'idle';
+    setTranscript('');
+    transcriptValueRef.current = '';
+    accumulatedTranscriptRef.current = '';
+    liveTranscriptRef.current = '';
+    pendingStopActionRef.current = null;
+    setShowDetails(false);
+    setErrorMessage(null);
+    setSpeechStatusText('Tap to start live transcription');
+    try {
+      await Voice.cancel();
+    } catch {
+      // Ignore cancellation failures while resetting local UI state.
+    }
   };
 
-  const handleAiAutoFill = () => {
-    setAiAutoFilling(true);
-    setTimeout(() => {
-      setTitle(AI_AUTO_FILL.title);
-      setSelectedMood(AI_AUTO_FILL.moodIndex);
-      setSelectedTags(AI_AUTO_FILL.tags);
+  useEffect(() => {
+    transcriptValueRef.current = transcript;
+  }, [transcript]);
+
+  useEffect(() => {
+    recordStateRef.current = recordState;
+  }, [recordState]);
+
+  useEffect(() => {
+    Voice.onSpeechStart = () => {
+      setErrorMessage(null);
+      setSpeechStatusText('Listening… Speak naturally and we will transcribe in real time.');
+    };
+
+    Voice.onSpeechPartialResults = event => {
+      if (recordStateRef.current !== 'recording') {
+        return;
+      }
+      const partial = normalizeSpeechText(event);
+      if (!partial) {
+        return;
+      }
+      liveTranscriptRef.current = partial;
+      const combinedTranscript = joinTranscriptParts(accumulatedTranscriptRef.current, partial);
+      transcriptValueRef.current = combinedTranscript;
+      setTranscript(combinedTranscript);
+    };
+
+    Voice.onSpeechResults = event => {
+      if (recordStateRef.current !== 'recording') {
+        return;
+      }
+      const finalText = normalizeSpeechText(event);
+      if (!finalText) {
+        return;
+      }
+      liveTranscriptRef.current = finalText;
+      const combinedTranscript = joinTranscriptParts(accumulatedTranscriptRef.current, finalText);
+      transcriptValueRef.current = combinedTranscript;
+      setTranscript(combinedTranscript);
+    };
+
+    Voice.onSpeechError = event => {
+      const message = mapSpeechError(event);
+      if (recordStateRef.current === 'recording') {
+        if (pendingStopActionRef.current === 'pause') {
+          const pausedTranscript = resolveTranscriptSnapshot(
+            transcriptValueRef.current,
+            accumulatedTranscriptRef.current,
+            liveTranscriptRef.current,
+          );
+          accumulatedTranscriptRef.current = pausedTranscript;
+          liveTranscriptRef.current = '';
+          transcriptValueRef.current = pausedTranscript;
+          setTranscript(pausedTranscript);
+          setRecordState('paused');
+          recordStateRef.current = 'paused';
+          pendingStopActionRef.current = null;
+        } else {
+          finalizeRecording();
+        }
+      }
+      setErrorMessage(message);
+      setSpeechStatusText('Live transcription stopped.');
+    };
+
+    Voice.onSpeechEnd = () => {
+      if (recordStateRef.current === 'recording') {
+        const latestTranscript = resolveTranscriptSnapshot(
+          transcriptValueRef.current,
+          accumulatedTranscriptRef.current,
+          liveTranscriptRef.current,
+        );
+
+        if (pendingStopActionRef.current === 'pause') {
+          accumulatedTranscriptRef.current = latestTranscript;
+          liveTranscriptRef.current = '';
+          transcriptValueRef.current = latestTranscript;
+          setTranscript(latestTranscript);
+          setRecordState('paused');
+          recordStateRef.current = 'paused';
+          pendingStopActionRef.current = null;
+          setSpeechStatusText('Recording paused. Resume to keep adding, or end when you are ready.');
+          return;
+        }
+
+        finalizeRecording();
+      }
+    };
+
+    Voice.isAvailable()
+      .then(value => setSpeechAvailable(Boolean(value)))
+      .catch(() => setSpeechAvailable(false));
+
+    return () => {
+      stopTimer();
+      Voice.destroy().catch(() => undefined);
+      Voice.removeAllListeners();
+    };
+  }, []);
+
+  const switchMode = async (m: InputMode) => {
+    if (mode === m) {
+      return;
+    }
+
+    if (recordStateRef.current === 'recording') {
+      await pauseRecording();
+    }
+
+    setErrorMessage(null);
+    setMode(m);
+  };
+
+  const saveDream = async () => {
+    if (isSaving) return;
+    try {
+      setIsSaving(true);
+      setErrorMessage(null);
+      const payload = {
+        sourceType: mode,
+        transcript: transcript.trim(),
+        title: title.trim() || undefined,
+        mood: selectedMoodValue,
+        tags: selectedTags,
+        durationSeconds: mode === 'voice' ? timer : undefined,
+        status: 'completed' as const,
+      };
+
+      const dream = draftDreamId
+        ? await updateDream(draftDreamId, payload)
+        : await createDream(payload);
+
+      saveToastAnim.setValue(0);
+      RNAnimated.sequence([
+        RNAnimated.timing(saveToastAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+        RNAnimated.delay(900),
+        RNAnimated.timing(saveToastAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+      ]).start(() => {
+        resetAll();
+        navigation.reset({
+          index: 1,
+          routes: [
+            { name: 'MainTabs', params: { screen: 'Home' } },
+            { name: 'DreamDetail', params: { dreamId: dream.id } },
+          ],
+        });
+      });
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Could not save dream.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const ensureDraftDream = async () => {
+    const payload = {
+      sourceType: mode,
+      transcript: transcript.trim(),
+      title: title.trim() || undefined,
+      mood: selectedMoodValue,
+      tags: selectedTags,
+      durationSeconds: mode === 'voice' ? timer : undefined,
+      status: 'draft' as const,
+    };
+
+    if (!payload.transcript) {
+      throw new Error('Please record or type your dream first.');
+    }
+
+    if (draftDreamId) {
+      const updated = await updateDream(draftDreamId, payload);
+      return updated.id;
+    }
+
+    const created = await createDream(payload);
+    setDraftDreamId(created.id);
+    return created.id;
+  };
+
+  const handleAiAutoFill = async () => {
+    try {
+      setAiAutoFilling(true);
+      setErrorMessage(null);
+      const currentTranscript = transcript.trim();
+      if (!currentTranscript) {
+        throw new Error('Please enter or record your dream before using AI Auto Fill.');
+      }
+
+      const result = await analyzeDreamAutofill(currentTranscript);
+      setTitle(result.suggestedTitle);
+      const moodIndex = MOOD_OPTIONS.findIndex(option => option.value === result.suggestedMood);
+      setSelectedMood(moodIndex >= 0 ? moodIndex : null);
+      setAiSuggestedTags(result.suggestedTags);
+      setSelectedTags(previous => mergeUniqueTags(previous, result.suggestedTags));
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'AI auto fill failed.');
+    } finally {
       setAiAutoFilling(false);
-    }, 1200);
+    }
   };
 
   const resetAll = () => {
+    void Voice.cancel().catch(() => undefined);
     setRecordState('idle');
     setTranscript('');
+    transcriptValueRef.current = '';
+    accumulatedTranscriptRef.current = '';
+    liveTranscriptRef.current = '';
+    pendingStopActionRef.current = null;
     setTitle('');
     setSelectedMood(null);
     setSelectedTags([]);
@@ -168,70 +569,50 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
     setAiAutoFilling(false);
     setImageStyleId('realistic');
     setStyleDropdownOpen(false);
-    wordIndexRef.current = 0;
+    setDraftDreamId(null);
+    setErrorMessage(null);
+    setSpeechStatusText('Tap to start live transcription');
+    setAiSuggestedTags([]);
+    stopTimer();
+    stopWave();
+    scale.value = withTiming(1);
+    recordStateRef.current = 'idle';
   };
 
-  const generateImage = (styleId: string) => {
-    setImageGenState('loading');
-    setStyleDropdownOpen(false);
-    // Stop any previous shimmer
-    if (shimmerLoopRef.current) {
-      shimmerLoopRef.current.stop();
-      shimmerLoopRef.current = null;
-    }
-    shimmerAnim.setValue(0);
-    // 3-second shimmer pulse loop stored in ref
-    shimmerLoopRef.current = RNAnimated.loop(
-      RNAnimated.sequence([
-        RNAnimated.timing(shimmerAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-        RNAnimated.timing(shimmerAnim, { toValue: 0.3, duration: 600, useNativeDriver: true }),
-      ])
-    );
-    shimmerLoopRef.current.start();
-    setTimeout(() => {
+  const generateImage = async (styleId: string) => {
+    try {
+      setImageGenState('loading');
+      setStyleDropdownOpen(false);
+      setErrorMessage(null);
       if (shimmerLoopRef.current) {
         shimmerLoopRef.current.stop();
         shimmerLoopRef.current = null;
       }
-      const found = ART_STYLES.find(s => s.id === styleId);
-      setGeneratedImageUri(found?.uri ?? null);
-      setGeneratedStyleId(styleId);
+      shimmerAnim.setValue(0);
+      shimmerLoopRef.current = RNAnimated.loop(
+        RNAnimated.sequence([
+          RNAnimated.timing(shimmerAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+          RNAnimated.timing(shimmerAnim, { toValue: 0.3, duration: 600, useNativeDriver: true }),
+        ])
+      );
+      shimmerLoopRef.current.start();
+
+      const currentDreamId = await ensureDraftDream();
+      const result = await generateDreamImage(currentDreamId, styleId);
+      setDraftDreamId(result.id);
+      setGeneratedImageUri(result.aiImageUrl);
+      setGeneratedStyleId(result.aiImageStyle ?? styleId);
       setImageGenState('done');
-    }, 3000);
+    } catch (error) {
+      setImageGenState('idle');
+      setErrorMessage(error instanceof Error ? error.message : 'AI image generation failed.');
+    } finally {
+      if (shimmerLoopRef.current) {
+        shimmerLoopRef.current.stop();
+        shimmerLoopRef.current = null;
+      }
+    }
   };
-
-  const switchMode = (m: InputMode) => {
-    resetAll();
-    setMode(m);
-  };
-
-  const saveDream = () => {
-    if (isSaving) return;
-    setIsSaving(true);
-    // Show toast
-    saveToastAnim.setValue(0);
-    RNAnimated.sequence([
-      RNAnimated.timing(saveToastAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
-      RNAnimated.delay(900),
-      RNAnimated.timing(saveToastAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
-    ]).start(() => {
-      // Reset Record state then navigate
-      resetAll();
-      setIsSaving(false);
-      navigation.reset({
-        index: 1,
-        routes: [
-          { name: 'MainTabs', params: { screen: 'Home' } },
-          { name: 'DreamDetail', params: { dreamId: 'new-dream' } },
-        ],
-      });
-    });
-  };
-
-  useEffect(() => () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    if (transcriptRef.current) clearInterval(transcriptRef.current);
-  }, []);
 
   const fmt = (s: number) =>
     `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
@@ -298,15 +679,29 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
               {/* Big Record Button */}
               <View style={styles.recordArea}>
                 <TouchableOpacity
-                  onPress={recordState === 'recording' ? stopRecording : recordState === 'idle' ? startRecording : undefined}
+                  style={styles.recordButtonTouch}
+                  onPress={
+                    recordState === 'recording'
+                      ? pauseRecording
+                      : recordState === 'idle'
+                        ? () => startRecording()
+                        : recordState === 'paused'
+                          ? resumeRecording
+                          : undefined
+                  }
                   activeOpacity={0.85}
                   disabled={recordState === 'done'}
+                  hitSlop={{ top: 18, bottom: 18, left: 18, right: 18 }}
                 >
                   <Animated.View style={[styles.recordRing, pulseBtnStyle,
                   recordState === 'recording' && styles.recordRingActive]}>
-                    <View style={[styles.recordInner, recordState === 'recording' && styles.recordInnerActive]}>
+                    <View style={[styles.recordInner, recordState === 'recording' && styles.recordInnerActive, recordState === 'paused' && styles.recordInnerPaused]}>
                       <Text style={styles.recordIcon}>
-                        {recordState === 'recording' ? <Icon name="close" size={44} color="#e74c3c" /> : <Icon name="mic" size={44} color={colors.mintGreen} />}
+                        {recordState === 'recording'
+                          ? <Icon name="pause" size={44} color="#e74c3c" />
+                          : recordState === 'paused'
+                            ? <Icon name="play" size={44} color={colors.mintGreen} />
+                            : <Icon name="mic" size={44} color={colors.mintGreen} />}
                       </Text>
                     </View>
                   </Animated.View>
@@ -315,12 +710,41 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
                 {recordState !== 'idle' && (
                   <View style={styles.timerRow}>
                     {recordState === 'recording' && <View style={styles.redDot} />}
+                    {recordState === 'paused' && <View style={styles.pauseDot} />}
                     <Text style={styles.timerText}>{fmt(timer)}</Text>
                     {recordState === 'done' && (
-                      <TouchableOpacity onPress={() => { setRecordState('idle'); setTranscript(''); setShowDetails(false); }} style={styles.retryBtn}>
+                      <TouchableOpacity
+                        onPress={() => void resetComposer()}
+                        style={styles.retryBtn}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      >
                         <Text style={styles.retryText}>Re-record</Text>
                       </TouchableOpacity>
                     )}
+                  </View>
+                )}
+
+                {recordState === 'paused' && (
+                  <View style={styles.voiceActionRow}>
+                    <TouchableOpacity
+                      style={[styles.voiceActionBtn, styles.voiceActionSecondary]}
+                      onPress={finishRecording}
+                      activeOpacity={0.85}
+                      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    >
+                      <Icon name="check" size={18} color={colors.textPrimary} />
+                      <Text style={[styles.voiceActionText, styles.voiceActionSecondaryText]}>End</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.voiceActionBtn, styles.voiceActionPrimary]}
+                      onPress={resumeRecording}
+                      activeOpacity={0.85}
+                      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    >
+                      <Icon name="play" size={18} color={colors.deepTeal} />
+                      <Text style={[styles.voiceActionText, styles.voiceActionPrimaryText]}>Resume</Text>
+                    </TouchableOpacity>
                   </View>
                 )}
               </View>
@@ -336,11 +760,32 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
               )}
 
               {/* Live / Editable Transcript */}
-              {(recordState === 'recording' || recordState === 'done') && (
+              {(recordState === 'recording' || recordState === 'paused' || recordState === 'done') && (
                 <GlassCard style={styles.transcriptCard}>
-                  <Text style={styles.transcriptLabel}>
-                    {recordState === 'recording' ? <><View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#e74c3c', marginRight: 6 }} />{'  Live Transcript'}</> : <><Icon name="pen" size={14} color={colors.mintGreen} />{'  Transcript — tap to edit'}</>}
-                  </Text>
+                  <View style={styles.transcriptHeader}>
+                    <View style={styles.transcriptHeaderLeft}>
+                      {recordState === 'recording'
+                        ? <View style={styles.liveDot} />
+                        : recordState === 'paused'
+                          ? <View style={styles.pauseDotSmall} />
+                          : <Icon name="pen" size={14} color={colors.mintGreen} />}
+                      <Text style={styles.transcriptLabel}>
+                        {recordState === 'recording'
+                          ? 'Live Transcript'
+                          : recordState === 'paused'
+                            ? 'Paused Transcript'
+                            : 'Transcript — tap to edit'}
+                      </Text>
+                    </View>
+                    {speechAvailable === false && (
+                      <TouchableOpacity
+                        onPress={() => Alert.alert('Speech Unavailable', 'This simulator or device does not currently expose Apple speech recognition. Try a physical iPhone for the most reliable testing.')}
+                      >
+                        <Icon name="warning" size={16} color={colors.warning} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  <Text style={styles.transcriptHelperText}>{speechStatusText}</Text>
                   <TextInput
                     style={styles.transcriptInput}
                     value={transcript}
@@ -383,6 +828,9 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
           {showDetails && (
             <View style={styles.detailsWrapper}>
               <GlassCard style={styles.detailsCard}>
+                {errorMessage && (
+                  <Text style={styles.errorText}>{errorMessage}</Text>
+                )}
                 {/* AI badge button — top-right corner */}
                 <TouchableOpacity
                   style={[styles.aiBadgeBtn, aiAutoFilling && styles.aiBadgeBtnLoading]}
@@ -407,13 +855,7 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
                 {/* Mood */}
                 <Text style={styles.detailLabel}>How did it feel?</Text>
                 <View style={styles.moodRow}>
-                  {[
-                    { emoji: '😌', label: 'Peaceful' },
-                    { emoji: '😊', label: 'Happy' },
-                    { emoji: '😢', label: 'Sad' },
-                    { emoji: '😰', label: 'Anxious' },
-                    { emoji: '😴', label: 'Calm' },
-                  ].map((m, i) => (
+                  {MOOD_OPTIONS.map((m, i) => (
                     <TouchableOpacity
                       key={i}
                       style={[styles.moodBtn, selectedMood === i && styles.moodBtnActive]}
@@ -429,8 +871,9 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
 
                 {/* Tags */}
                 <Text style={styles.detailLabel}>Tags</Text>
+                <Text style={styles.sectionHint}>Quick Tags</Text>
                 <View style={styles.tagRow}>
-                  {SUGGESTED_TAGS.map(tag => (
+                  {QUICK_TAGS.map(tag => (
                     <TouchableOpacity
                       key={tag}
                       style={[styles.tag, selectedTags.includes(tag) && styles.tagActive]}
@@ -442,6 +885,25 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
                     </TouchableOpacity>
                   ))}
                 </View>
+
+                {aiSuggestedTags.length > 0 && (
+                  <>
+                    <Text style={styles.sectionHint}>AI Suggested Tags</Text>
+                    <View style={styles.tagRow}>
+                      {aiSuggestedTags.map(tag => (
+                        <TouchableOpacity
+                          key={`ai-${tag}`}
+                          style={[styles.tag, styles.aiTag, selectedTags.includes(tag) && styles.tagActive]}
+                          onPress={() => toggleTag(tag)}
+                        >
+                          <Text style={[styles.tagText, styles.aiTagText, selectedTags.includes(tag) && styles.tagTextActive]}>
+                            {tag}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </>
+                )}
 
                 {/* AI Image — style picker + generate */}
                 <Text style={styles.detailLabel}>Generate AI Image</Text>
@@ -575,6 +1037,12 @@ const styles = StyleSheet.create({
   modeBtnTextActive: { color: colors.mintGreen, fontWeight: '700' },
 
   recordArea: { alignItems: 'center', marginBottom: spacing.lg },
+  recordButtonTouch: {
+    width: 188,
+    height: 188,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   recordRing: {
     width: 140, height: 140, borderRadius: 70,
     backgroundColor: colors.glassBg,
@@ -593,16 +1061,59 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   recordInnerActive: { backgroundColor: '#3a1e1e' },
+  recordInnerPaused: {
+    backgroundColor: 'rgba(20, 54, 48, 0.94)',
+  },
   recordIcon: { fontSize: 44 },
 
   timerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.md },
   redDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#e74c3c' },
+  pauseDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.warning },
+  pauseDotSmall: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.warning },
   timerText: { ...typography.h3, color: colors.textPrimary, fontWeight: '700', minWidth: 52 },
   retryBtn: {
-    paddingHorizontal: spacing.md, paddingVertical: 4,
+    minHeight: 40,
+    paddingHorizontal: spacing.md, paddingVertical: 8,
     backgroundColor: colors.surface, borderRadius: borderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   retryText: { ...typography.caption, color: colors.textTertiary },
+  voiceActionRow: {
+    width: '100%',
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginTop: spacing.md,
+    justifyContent: 'center',
+  },
+  voiceActionBtn: {
+    minHeight: 52,
+    minWidth: 138,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.full,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  voiceActionPrimary: {
+    backgroundColor: colors.mintGreen,
+  },
+  voiceActionSecondary: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+  },
+  voiceActionText: {
+    ...typography.body,
+    fontWeight: '700',
+  },
+  voiceActionPrimaryText: {
+    color: colors.deepTeal,
+  },
+  voiceActionSecondaryText: {
+    color: colors.textPrimary,
+  },
 
   waveContainer: {
     flexDirection: 'row', alignItems: 'center',
@@ -612,17 +1123,47 @@ const styles = StyleSheet.create({
   waveBar: { width: 4, backgroundColor: colors.mintGreen, borderRadius: 2 },
 
   transcriptCard: { width: '100%', marginBottom: spacing.md },
-  transcriptLabel: { ...typography.caption, color: colors.mintGreen, fontWeight: '700', marginBottom: spacing.sm, letterSpacing: 0.4 },
+  transcriptHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  transcriptHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#e74c3c' },
+  transcriptLabel: { ...typography.caption, color: colors.mintGreen, fontWeight: '700', letterSpacing: 0.4 },
+  transcriptHelperText: {
+    ...typography.small,
+    color: colors.textTertiary,
+    marginBottom: spacing.sm,
+    lineHeight: 18,
+  },
   transcriptInput: {
     ...typography.body, color: colors.textPrimary,
     lineHeight: 24, minHeight: 90, fontStyle: 'italic',
   },
   charCount: { ...typography.small, color: colors.textTertiary, textAlign: 'right', marginTop: 4 },
+  errorText: {
+    ...typography.small,
+    color: colors.error,
+    marginBottom: spacing.sm,
+    lineHeight: 18,
+  },
 
   detailsCard: { width: '100%', marginTop: spacing.sm },
   detailLabel: {
     ...typography.body, color: colors.textPrimary, fontWeight: '600',
     marginTop: spacing.md, marginBottom: spacing.sm,
+  },
+  sectionHint: {
+    ...typography.small,
+    color: colors.textTertiary,
+    marginBottom: spacing.sm,
   },
   titleInput: {
     backgroundColor: colors.surface, borderRadius: borderRadius.md,
@@ -652,6 +1193,13 @@ const styles = StyleSheet.create({
   tagActive: { backgroundColor: 'rgba(181,217,168,0.15)', borderColor: colors.mintGreen },
   tagText: { ...typography.caption, color: colors.textTertiary },
   tagTextActive: { color: colors.mintGreen, fontWeight: '600' },
+  aiTag: {
+    borderColor: colors.softTeal,
+    backgroundColor: 'rgba(110, 180, 180, 0.08)',
+  },
+  aiTagText: {
+    color: colors.softTeal,
+  },
 
   // AI Auto-fill button
   autoFillBtn: {

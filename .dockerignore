@@ -1,0 +1,10 @@
+.git
+.expo
+.claude
+node_modules
+ios/build
+android/build
+ios/Pods
+*.log
+.env.backend
+

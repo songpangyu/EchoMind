@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,8 +8,8 @@ import {
   TextInput,
   Alert,
   Modal,
-  FlatList,
   Animated,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -19,27 +19,25 @@ import { FloatingParticles } from '../components/FloatingParticles';
 import { colors, spacing, typography, borderRadius } from '../theme';
 import { RootStackParamList } from '../navigation/types';
 import Icon, { IconName } from '../components/Icon';
+import { listDreams, type Dream, type DreamMood } from '../api/dreams';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 type DreamEntry = {
   id: string;
   title: string;
-  isLucid: boolean;
   date: string; // 'YYYY-MM-DD'
   day: number;
   month: number;
   year: number;
   recordedTime: string;
-  sleepPhase: string;
   snippet: string;
   tags: { label: string }[];
   mood: MoodKey;
   isStarred: boolean;
-  voiceNoteMins: number;
   icon: IconName;
 };
 
-type MoodKey = 'peaceful' | 'joyful' | 'anxious' | 'sad' | 'calm';
+type MoodKey = DreamMood;
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const PHASE_COLORS = {
@@ -49,31 +47,13 @@ const PHASE_COLORS = {
 
 const MOOD_META: Record<MoodKey, { color: string; label: string }> = {
   peaceful: { color: '#7ec8a0', label: 'Peaceful' },
-  joyful: { color: '#c8b87e', label: 'Joyful' },
+  happy: { color: '#c8b87e', label: 'Happy' },
   anxious: { color: '#c87e7e', label: 'Anxious' },
   sad: { color: '#7da8c8', label: 'Sad' },
   calm: { color: '#b07ec8', label: 'Calm' },
 };
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-// Day index of Feb 1, 2026 (0=Sun): Feb 1 2026 = Sunday
-const MONTH_START_DAYS: Record<string, number> = { '2026-02': 0, '2026-01': 4, '2025-12': 1 };
-const MONTH_DAYS_COUNT: Record<string, number> = { '2026-02': 28, '2026-01': 31, '2025-12': 31 };
-const MONTH_LABELS: Record<string, string> = { '2026-02': 'February 2026', '2026-01': 'January 2026', '2025-12': 'December 2025' };
-const FULL_MOON_DAYS: Record<string, number[]> = { '2026-02': [13], '2026-01': [13] };
-
-// ─── Mock dreams ─────────────────────────────────────────────────────────────
-const ALL_DREAMS: DreamEntry[] = [
-  { id: 'd1', title: 'Forest Lake Under Moonlight', isLucid: true, date: '2026-02-10', day: 10, month: 2, year: 2026, recordedTime: '07:15 AM', sleepPhase: 'Deep Sleep', snippet: 'Walking into a forest bathed in moonlight, with towering trees. After passing through the woods, I found a calm lake reflecting stars...', tags: [{ label: 'Forest' }, { label: 'Lake' }], mood: 'peaceful', isStarred: true, voiceNoteMins: 8, icon: 'tree' },
-  { id: 'd2', title: 'Journey Floating in the Purple Nebula', isLucid: false, date: '2026-02-09', day: 9, month: 2, year: 2026, recordedTime: '06:45 AM', sleepPhase: 'REM Sleep', snippet: 'Found myself floating in a purple nebula, surrounded by glowing stardust. Reaching out, I touched a comet...', tags: [{ label: 'Space' }, { label: 'Stars' }], mood: 'joyful', isStarred: false, voiceNoteMins: 0, icon: 'galaxy' },
-  { id: 'd3', title: 'Deep Ocean City of Light', isLucid: true, date: '2026-02-09', day: 9, month: 2, year: 2026, recordedTime: '04:10 AM', sleepPhase: 'Deep Sleep', snippet: 'Diving into the deep sea I discovered a city built entirely of iridescent bubbles. Strange citizens waved...', tags: [{ label: 'Ocean' }, { label: 'Light' }], mood: 'anxious', isStarred: true, voiceNoteMins: 4, icon: 'wave' },
-  { id: 'd4', title: 'The Talking Ancient Forest', isLucid: false, date: '2026-02-07', day: 7, month: 2, year: 2026, recordedTime: '07:30 AM', sleepPhase: 'REM Sleep', snippet: 'Walking into an ancient forest where each tree had its own soul. The bark formed faces that whispered...', tags: [{ label: 'Forest' }, { label: 'Ancient' }], mood: 'calm', isStarred: true, voiceNoteMins: 0, icon: 'leaf' },
-  { id: 'd5', title: 'Flying Over Neon City', isLucid: true, date: '2026-02-06', day: 6, month: 2, year: 2026, recordedTime: '06:00 AM', sleepPhase: 'REM Sleep', snippet: 'Soaring above a neon-lit metropolis with wings of light...', tags: [{ label: 'City' }, { label: 'Flying' }], mood: 'joyful', isStarred: false, voiceNoteMins: 0, icon: 'city' },
-  { id: 'd6', title: 'Time Loop at the Train Station', isLucid: false, date: '2026-02-04', day: 4, month: 2, year: 2026, recordedTime: '05:50 AM', sleepPhase: 'REM Sleep', snippet: 'Caught in a loop at a rainy station, the same train kept arriving with different passengers each time...', tags: [{ label: 'Travel' }, { label: 'Time' }], mood: 'anxious', isStarred: false, voiceNoteMins: 3, icon: 'train' },
-  { id: 'd7', title: 'Starlight Garden', isLucid: false, date: '2026-02-02', day: 2, month: 2, year: 2026, recordedTime: '07:00 AM', sleepPhase: 'Light Sleep', snippet: 'A garden where every flower was made of crystallised starlight...', tags: [{ label: 'Garden' }, { label: 'Stars' }], mood: 'peaceful', isStarred: true, voiceNoteMins: 0, icon: 'flower' },
-  { id: 'd8', title: 'The Golden Mountain Dream', isLucid: false, date: '2025-02-14', day: 14, month: 2, year: 2025, recordedTime: '06:30 AM', sleepPhase: 'REM Sleep', snippet: 'Climbing a mountain made entirely of gold that shifted under every step...', tags: [{ label: 'Mountain' }, { label: 'Gold' }], mood: 'joyful', isStarred: false, voiceNoteMins: 0, icon: 'mountain' },
-];
 
 const NIGHT_TIMELINE = [
   { time: '23:10', label: 'Fell asleep', detail: 'Detected by sleep tracker', phaseColor: PHASE_COLORS.asleep },
@@ -90,7 +70,37 @@ const NIGHT_TIMELINE = [
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-const getMonthKey = (y: number, m: number) => `${y}-${String(m).padStart(2, '0')}`;
+const getMonthLabel = (year: number, month: number) =>
+  new Date(year, month - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+const getIconForDream = (dream: Dream): IconName => {
+  const tags = dream.tags.map(tag => tag.toLowerCase());
+  if (tags.some(tag => tag.includes('forest') || tag.includes('nature'))) return 'tree';
+  if (tags.some(tag => tag.includes('water') || tag.includes('lake') || tag.includes('ocean'))) return 'wave';
+  if (tags.some(tag => tag.includes('star') || tag.includes('space'))) return 'galaxy';
+  if (tags.some(tag => tag.includes('flower') || tag.includes('garden'))) return 'flower';
+  if (tags.some(tag => tag.includes('city'))) return 'city';
+  if (tags.some(tag => tag.includes('mountain'))) return 'mountain';
+  return 'sparkle';
+};
+
+const toDreamEntry = (dream: Dream): DreamEntry => {
+  const createdAt = new Date(dream.createdAt);
+  return {
+    id: dream.id,
+    title: dream.title || 'Untitled Dream',
+    date: createdAt.toISOString().slice(0, 10),
+    day: createdAt.getDate(),
+    month: createdAt.getMonth() + 1,
+    year: createdAt.getFullYear(),
+    recordedTime: createdAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+    snippet: dream.transcript,
+    tags: dream.tags.map(label => ({ label })),
+    mood: dream.mood || 'calm',
+    isStarred: dream.isFavorited,
+    icon: getIconForDream(dream),
+  };
+};
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 export const JournalScreen: React.FC = () => {
@@ -102,7 +112,8 @@ export const JournalScreen: React.FC = () => {
   const [searchText, setSearchText] = useState('');
 
   // Month navigation
-  const [monthYear, setMonthYear] = useState({ month: 2, year: 2026 });
+  const today = new Date();
+  const [monthYear, setMonthYear] = useState({ month: today.getMonth() + 1, year: today.getFullYear() });
   const [showYearPicker, setShowYearPicker] = useState(false);
 
   // Calendar selection
@@ -114,18 +125,56 @@ export const JournalScreen: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Stars
-  const [starredIds, setStarredIds] = useState<Set<string>>(new Set(ALL_DREAMS.filter(d => d.isStarred).map(d => d.id)));
+  const [fetchedDreams, setFetchedDreams] = useState<DreamEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [starredIds, setStarredIds] = useState<Set<string>>(new Set());
 
-  const monthKey = getMonthKey(monthYear.year, monthYear.month);
-  const monthLabel = MONTH_LABELS[monthKey] ?? `${monthYear.year}-${monthYear.month}`;
-  const startDay = MONTH_START_DAYS[monthKey] ?? 0;
-  const daysInMonth = MONTH_DAYS_COUNT[monthKey] ?? 30;
-  const fullMoonDays = FULL_MOON_DAYS[monthKey] ?? [];
+  const monthLabel = getMonthLabel(monthYear.year, monthYear.month);
+  const startDay = new Date(monthYear.year, monthYear.month - 1, 1).getDay();
+  const daysInMonth = new Date(monthYear.year, monthYear.month, 0).getDate();
+  const fullMoonDays: number[] = [];
+
+  useEffect(() => {
+    let active = true;
+    const timeout = setTimeout(async () => {
+      try {
+        setLoading(true);
+        setErrorMessage(null);
+        const response = await listDreams({
+          month: monthYear.month,
+          year: monthYear.year,
+          q: searchText.trim() || undefined,
+          pageSize: 100,
+        });
+        if (!active) {
+          return;
+        }
+        const mapped = response.items.map(toDreamEntry);
+        setFetchedDreams(mapped);
+        setStarredIds(new Set(mapped.filter(dream => dream.isStarred).map(dream => dream.id)));
+      } catch (error) {
+        if (active) {
+          setErrorMessage(error instanceof Error ? error.message : 'Could not load dreams.');
+          setFetchedDreams([]);
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }, 250);
+
+    return () => {
+      active = false;
+      clearTimeout(timeout);
+    };
+  }, [monthYear.month, monthYear.year, searchText]);
 
   // ── Derived data ──
   const dreamsThisMonth = useMemo(() =>
-    ALL_DREAMS.filter(d => d.month === monthYear.month && d.year === monthYear.year),
-    [monthYear]);
+    fetchedDreams.filter(d => d.month === monthYear.month && d.year === monthYear.year),
+    [fetchedDreams, monthYear]);
 
   const dreamsByDay = useMemo(() => {
     const m: Record<number, DreamEntry[]> = {};
@@ -134,9 +183,9 @@ export const JournalScreen: React.FC = () => {
   }, [dreamsThisMonth]);
 
   const unrecordedDays = useMemo(() => {
-    const today = new Date();
-    const limit = (monthYear.year === today.getFullYear() && monthYear.month === today.getMonth() + 1)
-      ? today.getDate() : daysInMonth;
+    const currentDate = new Date();
+    const limit = (monthYear.year === currentDate.getFullYear() && monthYear.month === currentDate.getMonth() + 1)
+      ? currentDate.getDate() : daysInMonth;
     const result: number[] = [];
     for (let d = 1; d <= limit; d++) {
       if (!dreamsByDay[d]) result.push(d);
@@ -152,18 +201,15 @@ export const JournalScreen: React.FC = () => {
     return best;
   }, [dreamsByDay, daysInMonth]);
 
-  const starredCount = useMemo(() => ALL_DREAMS.filter(d => starredIds.has(d.id) && d.month === monthYear.month && d.year === monthYear.year).length, [starredIds, monthYear]);
+  const starredCount = useMemo(
+    () => dreamsThisMonth.filter(d => starredIds.has(d.id)).length,
+    [dreamsThisMonth, starredIds]
+  );
 
   // ── Search / filter ──
   const filteredDreams = useMemo(() => {
-    if (!searchText.trim()) return dreamsThisMonth;
-    const q = searchText.toLowerCase();
-    return dreamsThisMonth.filter(d =>
-      d.title.toLowerCase().includes(q) ||
-      d.snippet.toLowerCase().includes(q) ||
-      d.tags.some(t => t.label.toLowerCase().includes(q))
-    );
-  }, [dreamsThisMonth, searchText]);
+    return dreamsThisMonth;
+  }, [dreamsThisMonth]);
 
   // Group filtered dreams by day in desc order
   const groupedByDay = useMemo(() => {
@@ -176,10 +222,7 @@ export const JournalScreen: React.FC = () => {
   }, [filteredDreams]);
 
   // Last year on this day
-  const todayDay = new Date().getDate();
-  const lastYearDream = useMemo(() =>
-    ALL_DREAMS.find(d => d.day === todayDay && d.year === monthYear.year - 1 && d.month === monthYear.month),
-    [todayDay, monthYear]);
+  const lastYearDream = useMemo<DreamEntry | null>(() => null, []);
 
   // ── Toast ──
   const [toastMsg, setToastMsg] = useState('');
@@ -353,7 +396,7 @@ export const JournalScreen: React.FC = () => {
                 <Text style={styles.dreamTitle} numberOfLines={1}>{dream.title}</Text>
                 {(() => {
                   const MOOD_EMOJI: Record<MoodKey, string> = {
-                    peaceful: '😌', joyful: '😊', anxious: '😰',
+                    peaceful: '😌', happy: '😊', anxious: '😰',
                     sad: '😢', calm: '😴',
                   };
                   return (
@@ -402,7 +445,7 @@ export const JournalScreen: React.FC = () => {
   const getMoodBg = (mood: MoodKey): string => {
     const baseColors: Record<MoodKey, string> = {
       peaceful: '#2a3d2a',
-      joyful: '#3d3220',
+      happy: '#3d3220',
       anxious: '#3d2a2a',
       sad: '#202a3d',
       calm: '#2e2040',
@@ -542,6 +585,19 @@ export const JournalScreen: React.FC = () => {
             ))}
           </View>
         </GlassCard>
+
+        {(loading || errorMessage) && (
+          <GlassCard style={styles.statusCard}>
+            {loading ? (
+              <View style={styles.statusRow}>
+                <ActivityIndicator size="small" color={colors.mintGreen} />
+                <Text style={styles.statusText}>Loading dreams...</Text>
+              </View>
+            ) : (
+              <Text style={styles.statusErrorText}>{errorMessage}</Text>
+            )}
+          </GlassCard>
+        )}
 
         {/* ── List / Calendar toggle ── */}
         <View style={styles.toggleWrap}>
@@ -874,6 +930,10 @@ const styles = StyleSheet.create({
   statValue: { ...typography.h2, color: colors.mintGreen, fontWeight: '700' },
   statLabel: { ...typography.small, color: colors.textTertiary, marginTop: 2 },
   statDivider: { width: 1, backgroundColor: colors.deepTeal, marginVertical: spacing.sm },
+  statusCard: { marginHorizontal: spacing.lg, marginBottom: spacing.md },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  statusText: { ...typography.body, color: colors.textSecondary },
+  statusErrorText: { ...typography.body, color: colors.error },
 
   // Toggle
   toggleWrap: {
@@ -1172,6 +1232,3 @@ const styles = StyleSheet.create({
     textAlign: 'center' as const,
   },
 });
-
-
-

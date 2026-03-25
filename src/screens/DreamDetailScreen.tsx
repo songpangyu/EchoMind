@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
     View,
     Text,
@@ -7,26 +7,16 @@ import {
     TouchableOpacity,
     Image,
     Animated,
+    ActivityIndicator,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { GlassCard } from '../components/GlassCard';
 import { FloatingParticles } from '../components/FloatingParticles';
 import { colors, spacing, typography, borderRadius } from '../theme';
 import { RootStackParamList } from '../navigation/types';
 import Icon, { IconName } from '../components/Icon';
-
-// ─── Mock dream data (in real app these come from route params / store) ────────
-const DREAM = {
-    title: 'Fireflies in the Misty Forest',
-    date: 'March 7, 2026 · 6:42 AM',
-    duration: '0:38',
-    mood: { emoji: '😌', label: 'Peaceful' },
-    tags: ['Forest', 'Night', 'Fireflies', 'Nature', 'Peaceful'],
-    imageUri: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&h=500&fit=crop',
-    imageStyle: '📷 Realistic',
-    transcript: 'I was walking through a misty forest at night. The trees were enormous, like ancient guardians. Tiny glowing fireflies danced around me, leaving trails of golden light. I could hear a gentle stream nearby and the air smelled like pine and rain...',
-};
+import { getDream, updateDream, type Dream, type DreamMood } from '../api/dreams';
 
 // ─── AI interpretation per perspective ────────────────────────────────────────
 type Perspective = 'life' | 'work' | 'relationship' | 'emotion' | 'spiritual';
@@ -88,12 +78,53 @@ const AI_ANALYSIS: Record<Perspective, { summary: string; insights: string[]; su
 };
 
 type NavProp = StackNavigationProp<RootStackParamList>;
+type DreamDetailRoute = RouteProp<RootStackParamList, 'DreamDetail'>;
+
+const MOOD_META: Record<DreamMood, { emoji: string; label: string }> = {
+    peaceful: { emoji: '😌', label: 'Peaceful' },
+    happy: { emoji: '😊', label: 'Happy' },
+    sad: { emoji: '😢', label: 'Sad' },
+    anxious: { emoji: '😰', label: 'Anxious' },
+    calm: { emoji: '😴', label: 'Calm' },
+};
+
+const IMAGE_STYLE_LABELS: Record<string, string> = {
+    realistic: 'Realistic',
+    '3d-cartoon': '3D Cartoon',
+    anime: 'Anime / Manga',
+    watercolor: 'Watercolor',
+    'oil-paint': 'Oil Painting',
+    sketch: 'Pencil Sketch',
+    fantasy: 'Fantasy Art',
+};
+
+const formatDreamDate = (date: string) =>
+    new Date(date).toLocaleString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+    });
+
+const formatDuration = (seconds: number | null) => {
+    if (!seconds) {
+        return 'Manual entry';
+    }
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${String(secs).padStart(2, '0')}`;
+};
 
 export const DreamDetailScreen: React.FC = () => {
     const navigation = useNavigation<NavProp>();
+    const route = useRoute<DreamDetailRoute>();
     const [perspective, setPerspective] = useState<Perspective>('life');
-    const [isStarred, setIsStarred] = useState(false);
     const analysis = AI_ANALYSIS[perspective];
+    const [dream, setDream] = useState<Dream | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [updatingFavorite, setUpdatingFavorite] = useState(false);
 
     // Toast
     const [toastMsg, setToastMsg] = useState('');
@@ -111,10 +142,47 @@ export const DreamDetailScreen: React.FC = () => {
         toastTimer.current = setTimeout(() => setToastMsg(''), 2400);
     }, [toastAnim]);
 
-    const toggleStar = () => {
-        const next = !isStarred;
-        setIsStarred(next);
-        showToast(next ? '⭐ Added to favorites' : '✓ Removed from favorites');
+    useEffect(() => {
+        let active = true;
+        const loadDream = async () => {
+            try {
+                setLoading(true);
+                setError(null);
+                const result = await getDream(route.params.dreamId);
+                if (active) {
+                    setDream(result);
+                }
+            } catch (loadError) {
+                if (active) {
+                    setError(loadError instanceof Error ? loadError.message : 'Could not load dream.');
+                }
+            } finally {
+                if (active) {
+                    setLoading(false);
+                }
+            }
+        };
+
+        loadDream();
+        return () => {
+            active = false;
+        };
+    }, [route.params.dreamId]);
+
+    const toggleStar = async () => {
+        if (!dream || updatingFavorite) {
+            return;
+        }
+        try {
+            setUpdatingFavorite(true);
+            const updated = await updateDream(dream.id, { isFavorited: !dream.isFavorited });
+            setDream(updated);
+            showToast(updated.isFavorited ? '⭐ Added to favorites' : '✓ Removed from favorites');
+        } catch (updateError) {
+            showToast(updateError instanceof Error ? updateError.message : 'Could not update favorite.');
+        } finally {
+            setUpdatingFavorite(false);
+        }
     };
 
     const goHome = () => {
@@ -128,6 +196,34 @@ export const DreamDetailScreen: React.FC = () => {
         });
     };
 
+    if (loading) {
+        return (
+            <View style={styles.centerState}>
+                <FloatingParticles />
+                <ActivityIndicator color={colors.mintGreen} size="large" />
+                <Text style={styles.centerStateText}>Loading dream...</Text>
+            </View>
+        );
+    }
+
+    if (!dream || error) {
+        return (
+            <View style={styles.centerState}>
+                <FloatingParticles />
+                <Text style={styles.centerStateTitle}>Dream unavailable</Text>
+                <Text style={styles.centerStateText}>{error ?? 'We could not load this dream.'}</Text>
+                <TouchableOpacity style={styles.retryButton} onPress={goHome}>
+                    <Text style={styles.retryButtonText}>Go Back</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
+
+    const moodMeta = dream.mood ? MOOD_META[dream.mood] : null;
+    const imageStyleText = dream.aiImageStyle
+        ? `📷 ${IMAGE_STYLE_LABELS[dream.aiImageStyle] ?? dream.aiImageStyle}`
+        : 'No AI image yet';
+
     return (
         <View style={styles.container}>
             <FloatingParticles />
@@ -135,33 +231,47 @@ export const DreamDetailScreen: React.FC = () => {
 
                 {/* ── Hero image ── */}
                 <View style={styles.heroWrapper}>
-                    <Image source={{ uri: DREAM.imageUri }} style={styles.heroImage} resizeMode="cover" />
+                    {dream.aiImageUrl ? (
+                        <Image source={{ uri: dream.aiImageUrl }} style={styles.heroImage} resizeMode="cover" />
+                    ) : (
+                        <View style={[styles.heroImage, styles.heroPlaceholder]}>
+                            <Icon name="image" size={42} color={colors.textTertiary} />
+                            <Text style={styles.heroPlaceholderText}>No generated image yet</Text>
+                        </View>
+                    )}
                     {/* Back button */}
                     <TouchableOpacity style={styles.backBtn} onPress={goHome}>
                         <Text style={styles.backBtnText}>‹</Text>
                     </TouchableOpacity>
                     {/* Star button */}
                     <TouchableOpacity style={styles.starBtn} onPress={toggleStar} activeOpacity={0.8}>
-                        <Icon name={isStarred ? 'star-fill' : 'star'} size={22} color={isStarred ? colors.mintGreen : colors.textPrimary} strokeWidth={2} />
+                        <Icon
+                            name={dream.isFavorited ? 'star-fill' : 'star'}
+                            size={22}
+                            color={dream.isFavorited ? colors.mintGreen : colors.textPrimary}
+                            strokeWidth={2}
+                        />
                     </TouchableOpacity>
                     {/* Image style badge */}
                     <View style={styles.imageStyleBadge}>
-                        <Text style={styles.imageStyleText}>{DREAM.imageStyle}</Text>
+                        <Text style={styles.imageStyleText}>{imageStyleText}</Text>
                     </View>
                 </View>
 
                 <View style={styles.body}>
                     {/* ── Title & meta ── */}
-                    <Text style={styles.dreamTitle}>{DREAM.title}</Text>
+                    <Text style={styles.dreamTitle}>{dream.title || 'Untitled Dream'}</Text>
                     <View style={styles.metaRow}>
-                        <Text style={styles.metaItem}>📅 {DREAM.date}</Text>
-                        <Text style={styles.metaItem}>🎙️ {DREAM.duration}</Text>
-                        <Text style={styles.metaItem}>{DREAM.mood.emoji} {DREAM.mood.label}</Text>
+                        <Text style={styles.metaItem}>📅 {formatDreamDate(dream.createdAt)}</Text>
+                        <Text style={styles.metaItem}>🎙️ {formatDuration(dream.durationSeconds)}</Text>
+                        <Text style={styles.metaItem}>
+                            {moodMeta ? `${moodMeta.emoji} ${moodMeta.label}` : 'Mood pending'}
+                        </Text>
                     </View>
 
                     {/* ── Tags ── */}
                     <View style={styles.tagRow}>
-                        {DREAM.tags.map(t => (
+                        {dream.tags.map(t => (
                             <View key={t} style={styles.tag}>
                                 <Text style={styles.tagText}>{t}</Text>
                             </View>
@@ -174,7 +284,7 @@ export const DreamDetailScreen: React.FC = () => {
                             <Icon name="note" size={20} color={colors.textPrimary} style={{ marginRight: 6 }} />
                             <Text style={styles.cardLabel}>Dream Transcript</Text>
                         </View>
-                        <Text style={styles.transcriptText}>{DREAM.transcript}</Text>
+                        <Text style={styles.transcriptText}>{dream.transcript}</Text>
                     </GlassCard>
 
                     {/* ── Apple Health Sleep Data ── */}
@@ -317,10 +427,52 @@ export const DreamDetailScreen: React.FC = () => {
 // ─── Styles ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
+    centerState: {
+        flex: 1,
+        backgroundColor: colors.background,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: spacing.xl,
+    },
+    centerStateTitle: {
+        ...typography.h2,
+        color: colors.textPrimary,
+        marginTop: spacing.md,
+    },
+    centerStateText: {
+        ...typography.body,
+        color: colors.textSecondary,
+        marginTop: spacing.sm,
+        textAlign: 'center',
+    },
+    retryButton: {
+        marginTop: spacing.lg,
+        backgroundColor: colors.surface,
+        borderRadius: borderRadius.full,
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.sm,
+        borderWidth: 1,
+        borderColor: colors.mintGreen,
+    },
+    retryButtonText: {
+        ...typography.body,
+        color: colors.mintGreen,
+        fontWeight: '600',
+    },
 
     // Hero
     heroWrapper: { position: 'relative', height: 260 },
     heroImage: { width: '100%', height: '100%' },
+    heroPlaceholder: {
+        backgroundColor: colors.surface,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: spacing.sm,
+    },
+    heroPlaceholderText: {
+        ...typography.body,
+        color: colors.textTertiary,
+    },
     backBtn: {
         position: 'absolute', top: 48, left: 16,
         width: 40, height: 40, borderRadius: 20,

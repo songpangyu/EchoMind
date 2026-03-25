@@ -11,7 +11,7 @@ export type IconName =
     | 'peaceful' | 'happy' | 'anxious' | 'sad' | 'calm'
     // Actions
     | 'search' | 'close' | 'heart' | 'heart-fill' | 'comment' | 'star' | 'star-fill'
-    | 'more' | 'back' | 'share' | 'check' | 'edit' | 'camera'
+    | 'more' | 'back' | 'share' | 'check' | 'edit' | 'camera' | 'play' | 'pause'
     // Content types
     | 'tree' | 'sparkle' | 'wave' | 'mountain' | 'city' | 'train' | 'flower' | 'galaxy'
     // Features
@@ -100,6 +100,10 @@ const Icon: React.FC<IconProps> = ({ name, size = 24, color = '#b5d9a8', strokeW
             return <Svg {...props}><Path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" /><Path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" /></Svg>;
         case 'camera':
             return <Svg {...props}><Path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" /><Circle cx="12" cy="13" r="4" stroke={color} strokeWidth={sw} /></Svg>;
+        case 'play':
+            return <Svg {...props}><Path d="M8 5.5v13l10-6.5-10-6.5z" fill={color} stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" /></Svg>;
+        case 'pause':
+            return <Svg {...props}><Rect x="7" y="5" width="3.5" height="14" rx="1.2" fill={color} stroke={color} strokeWidth={sw} /><Rect x="13.5" y="5" width="3.5" height="14" rx="1.2" fill={color} stroke={color} strokeWidth={sw} /></Svg>;
 
         // ── Nature / Dream themes ──
         case 'tree':
