@@ -11,6 +11,7 @@ import {
   Animated as RNAnimated,
   Image,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -38,14 +39,14 @@ import {
   type DreamMood,
 } from '../api/dreams';
 
-const ART_STYLES: { id: string; label: string; icon: IconName; uri: string }[] = [
-  { id: 'realistic', label: 'Realistic', icon: 'image', uri: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=600&h=400&fit=crop' },
-  { id: '3d-cartoon', label: '3D Cartoon', icon: 'sparkles', uri: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600&h=400&fit=crop' },
-  { id: 'anime', label: 'Anime / Manga', icon: 'flag', uri: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=600&h=400&fit=crop' },
-  { id: 'watercolor', label: 'Watercolor', icon: 'palette', uri: 'https://images.unsplash.com/photo-1518241353330-0f7941c2d9b5?w=600&h=400&fit=crop' },
-  { id: 'oil-paint', label: 'Oil Painting', icon: 'brush', uri: 'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=600&h=400&fit=crop' },
-  { id: 'sketch', label: 'Pencil Sketch', icon: 'pencil', uri: 'https://images.unsplash.com/photo-1511497584788-876760111969?w=600&h=400&fit=crop' },
-  { id: 'fantasy', label: 'Fantasy Art', icon: 'rainbow', uri: 'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=600&h=400&fit=crop' },
+const ART_STYLES: { id: string; label: string; icon: IconName; uri: string; hint: string }[] = [
+  { id: 'realistic', label: 'Realistic', icon: 'image', uri: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=600&h=400&fit=crop', hint: 'Natural lighting, grounded detail, cinematic realism.' },
+  { id: '3d-cartoon', label: '3D Cartoon', icon: 'sparkles', uri: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600&h=400&fit=crop', hint: 'Playful shapes, polished animation feel, softer mood.' },
+  { id: 'anime', label: 'Anime / Manga', icon: 'flag', uri: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=600&h=400&fit=crop', hint: 'Bold framing, expressive linework, vivid dream energy.' },
+  { id: 'watercolor', label: 'Watercolor', icon: 'palette', uri: 'https://images.unsplash.com/photo-1518241353330-0f7941c2d9b5?w=600&h=400&fit=crop', hint: 'Soft edges, airy washes, poetic and gentle atmosphere.' },
+  { id: 'oil-paint', label: 'Oil Painting', icon: 'brush', uri: 'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=600&h=400&fit=crop', hint: 'Richer texture, dramatic lighting, gallery-style composition.' },
+  { id: 'sketch', label: 'Pencil Sketch', icon: 'pencil', uri: 'https://images.unsplash.com/photo-1511497584788-876760111969?w=600&h=400&fit=crop', hint: 'Graphite texture, monochrome mood, hand-drawn memory.' },
+  { id: 'fantasy', label: 'Fantasy Art', icon: 'rainbow', uri: 'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=600&h=400&fit=crop', hint: 'Mystical scale, magical glow, epic dreamworld feeling.' },
 ];
 
 const QUICK_TAGS = [
@@ -147,6 +148,7 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
   const [imageGenState, setImageGenState] = useState<'idle' | 'loading' | 'done'>('idle');
   const [generatedImageUri, setGeneratedImageUri] = useState<string | null>(null);
   const [generatedStyleId, setGeneratedStyleId] = useState<string | null>(null);
+  const [imageErrorMessage, setImageErrorMessage] = useState<string | null>(null);
   const [aiAutoFilling, setAiAutoFilling] = useState(false);
   const [imageStyleId, setImageStyleId] = useState('realistic');
   const [styleDropdownOpen, setStyleDropdownOpen] = useState(false);
@@ -173,6 +175,15 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
     () => (selectedMood === null ? undefined : MOOD_OPTIONS[selectedMood]?.value),
     [selectedMood]
   );
+  const selectedArtStyle = useMemo(
+    () => ART_STYLES.find(style => style.id === imageStyleId) ?? ART_STYLES[0],
+    [imageStyleId]
+  );
+  const generatedArtStyle = useMemo(
+    () => ART_STYLES.find(style => style.id === generatedStyleId) ?? null,
+    [generatedStyleId]
+  );
+  const hasTranscript = transcript.trim().length > 0;
 
   const startWave = () => {
     waveAnims.forEach((anim, i) => {
@@ -262,6 +273,7 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
         setImageGenState('idle');
         setGeneratedImageUri(null);
         setGeneratedStyleId(null);
+        setImageErrorMessage(null);
       }
 
       setRecordingActive();
@@ -566,6 +578,7 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
     setImageGenState('idle');
     setGeneratedImageUri(null);
     setGeneratedStyleId(null);
+    setImageErrorMessage(null);
     setAiAutoFilling(false);
     setImageStyleId('realistic');
     setStyleDropdownOpen(false);
@@ -584,6 +597,7 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
       setImageGenState('loading');
       setStyleDropdownOpen(false);
       setErrorMessage(null);
+      setImageErrorMessage(null);
       if (shimmerLoopRef.current) {
         shimmerLoopRef.current.stop();
         shimmerLoopRef.current = null;
@@ -604,8 +618,10 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
       setGeneratedStyleId(result.aiImageStyle ?? styleId);
       setImageGenState('done');
     } catch (error) {
-      setImageGenState('idle');
-      setErrorMessage(error instanceof Error ? error.message : 'AI image generation failed.');
+      const message = error instanceof Error ? error.message : 'AI image generation failed.';
+      setImageGenState(generatedImageUri ? 'done' : 'idle');
+      setErrorMessage(message);
+      setImageErrorMessage(message);
     } finally {
       if (shimmerLoopRef.current) {
         shimmerLoopRef.current.stop();
@@ -907,15 +923,24 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
 
                 {/* AI Image — style picker + generate */}
                 <Text style={styles.detailLabel}>Generate AI Image</Text>
+                <View style={styles.imageSectionIntro}>
+                  <View style={styles.imageHintBadge}>
+                    <Icon name={selectedArtStyle.icon} size={16} color={colors.mintGreen} />
+                    <Text style={styles.imageHintBadgeText}>4:3 Dream Artwork</Text>
+                  </View>
+                  <Text style={styles.imageSectionHint}>{selectedArtStyle.hint}</Text>
+                </View>
 
                 {/* Style dropdown trigger */}
                 <TouchableOpacity
                   style={styles.dropdownTrigger}
                   onPress={() => setStyleDropdownOpen(v => !v)}
+                  activeOpacity={0.85}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   <Text style={styles.dropdownTriggerText}>
-                    <Icon name={ART_STYLES.find(s => s.id === imageStyleId)?.icon ?? 'image'} size={16} color={colors.mintGreen} />{' '}
-                    {ART_STYLES.find(s => s.id === imageStyleId)?.label}
+                    <Icon name={selectedArtStyle.icon} size={16} color={colors.mintGreen} />{' '}
+                    {selectedArtStyle.label}
                   </Text>
                   <Text style={styles.dropdownArrow}>{styleDropdownOpen ? '▲' : '▼'}</Text>
                 </TouchableOpacity>
@@ -928,54 +953,114 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
                         key={s.id}
                         style={[styles.dropdownItem, imageStyleId === s.id && styles.dropdownItemActive]}
                         onPress={() => { setImageStyleId(s.id); setStyleDropdownOpen(false); }}
+                        activeOpacity={0.85}
                       >
-                        <Text style={styles.dropdownItemText}>
-                          <Icon name={s.icon} size={16} color={colors.mintGreen} />  {s.label}
-                        </Text>
+                        <View style={styles.dropdownItemCopy}>
+                          <Text style={styles.dropdownItemText}>
+                            <Icon name={s.icon} size={16} color={colors.mintGreen} />  {s.label}
+                          </Text>
+                          <Text style={styles.dropdownItemHint}>{s.hint}</Text>
+                        </View>
                         {imageStyleId === s.id && <Text style={styles.dropdownCheck}>✓</Text>}
                       </TouchableOpacity>
                     ))}
                   </View>
                 )}
 
+                {!hasTranscript && (
+                  <View style={styles.imageStatusCard}>
+                    <Icon name="note" size={16} color={colors.textSecondary} />
+                    <Text style={styles.imageStatusText}>
+                      Record or type your dream first, then the AI can turn it into an image.
+                    </Text>
+                  </View>
+                )}
+
+                {imageErrorMessage && (
+                  <View style={[styles.imageStatusCard, styles.imageStatusCardError]}>
+                    <Icon name="warning" size={16} color={colors.error} />
+                    <Text style={[styles.imageStatusText, styles.imageStatusTextError]}>
+                      {imageErrorMessage}
+                    </Text>
+                  </View>
+                )}
+
                 {/* Generate button: idle or regenerate */}
                 {imageGenState !== 'loading' && (
                   <TouchableOpacity
-                    style={[styles.generateBtn, imageGenState === 'done' && imageStyleId === generatedStyleId && styles.generateBtnSubtle]}
+                    style={[
+                      styles.generateBtn,
+                      !hasTranscript && styles.generateBtnDisabled,
+                      imageGenState === 'done' && imageStyleId === generatedStyleId && styles.generateBtnSubtle,
+                    ]}
                     onPress={() => generateImage(imageStyleId)}
+                    disabled={!hasTranscript}
+                    activeOpacity={0.9}
                   >
                     <Text style={styles.generateBtnText}>
-                      {imageGenState === 'idle'
-                        ? 'Generate AI Image'
+                      {imageErrorMessage
+                        ? `Try ${selectedArtStyle.label} Again`
+                        : imageGenState === 'idle'
+                          ? `Generate ${selectedArtStyle.label}`
                         : imageStyleId !== generatedStyleId
                           ? `Regenerate in ${ART_STYLES.find(s => s.id === imageStyleId)?.label}`
                           : 'Regenerate'}
+                    </Text>
+                    <Text style={styles.generateBtnSubtext}>
+                      {!hasTranscript
+                        ? 'Dream text needed before image generation'
+                        : imageStyleId !== generatedStyleId
+                          ? 'Keep the current image or create a fresh visual take'
+                          : generatedImageUri
+                            ? 'Make another version with the same style'
+                            : 'We use your transcript, mood, and tags to build the prompt'}
                     </Text>
                   </TouchableOpacity>
                 )}
 
                 {/* Loading shimmer */}
                 {imageGenState === 'loading' && (
-                  <View style={styles.imageLoadingBox}>
-                    <RNAnimated.View style={[styles.imageLoadingInner, { opacity: shimmerAnim }]}>
-                      <Icon name="moon" size={44} color={colors.mintGreen} />
-                      <Text style={styles.imageLoadingText}>Painting your dream...</Text>
-                    </RNAnimated.View>
-                  </View>
+                  generatedImageUri ? (
+                    <View style={styles.aiImageWrap}>
+                      <View style={styles.imagePreviewFrame}>
+                        <Image
+                          source={{ uri: generatedImageUri }}
+                          style={[styles.aiImage, styles.aiImageLoading]}
+                          resizeMode="cover"
+                        />
+                        <View style={styles.imageOverlay}>
+                          <RNAnimated.View style={[styles.imageLoadingInner, { opacity: shimmerAnim }]}>
+                            <ActivityIndicator color={colors.mintGreen} size="small" />
+                            <Text style={styles.imageLoadingText}>Painting a new {selectedArtStyle.label} version...</Text>
+                          </RNAnimated.View>
+                        </View>
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={styles.imageLoadingBox}>
+                      <RNAnimated.View style={[styles.imageLoadingInner, { opacity: shimmerAnim }]}>
+                        <Icon name="moon" size={44} color={colors.mintGreen} />
+                        <Text style={styles.imageLoadingText}>Painting your dream...</Text>
+                        <Text style={styles.imageLoadingSubtext}>Using {selectedArtStyle.label} style in a 4:3 frame</Text>
+                      </RNAnimated.View>
+                    </View>
+                  )
                 )}
 
                 {/* Generated image — persists across style changes */}
                 {imageGenState === 'done' && generatedImageUri && (
                   <View style={styles.aiImageWrap}>
-                    <Image
-                      source={{ uri: generatedImageUri }}
-                      style={styles.aiImage}
-                      resizeMode="cover"
-                    />
+                    <View style={styles.imagePreviewFrame}>
+                      <Image
+                        source={{ uri: generatedImageUri }}
+                        style={styles.aiImage}
+                        resizeMode="cover"
+                      />
+                    </View>
                     <View style={styles.aiImageMeta}>
                       <Text style={styles.aiImageLabel}>
-                        <Icon name={ART_STYLES.find(s => s.id === generatedStyleId)?.icon ?? 'image'} size={14} color={colors.textSecondary} />{'  '}
-                        {ART_STYLES.find(s => s.id === generatedStyleId)?.label} Style
+                        <Icon name={generatedArtStyle?.icon ?? 'image'} size={14} color={colors.textSecondary} />{'  '}
+                        {generatedArtStyle?.label ?? generatedStyleId} Style
                       </Text>
                       {imageStyleId !== generatedStyleId && (
                         <Text style={styles.aiImagePending}>
@@ -1240,6 +1325,33 @@ const styles = StyleSheet.create({
   aiBadgeText: { fontSize: 13 },
   aiBadgeLabel: { fontSize: 11, color: colors.mintGreen, fontWeight: '700', letterSpacing: 0.3 },
 
+  imageSectionIntro: {
+    marginBottom: spacing.sm,
+    gap: 8,
+  },
+  imageHintBadge: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 6,
+    borderRadius: borderRadius.full,
+    backgroundColor: 'rgba(181,217,168,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(181,217,168,0.2)',
+  },
+  imageHintBadgeText: {
+    ...typography.caption,
+    color: colors.mintGreen,
+    fontWeight: '700',
+  },
+  imageSectionHint: {
+    ...typography.small,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+
   // Style dropdown
   dropdownTrigger: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -1259,9 +1371,45 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 2,
     borderBottomWidth: 1, borderBottomColor: colors.deepTeal,
   },
+  dropdownItemCopy: {
+    flex: 1,
+    paddingRight: spacing.md,
+  },
   dropdownItemActive: { backgroundColor: 'rgba(181,217,168,0.1)' },
   dropdownItemText: { ...typography.body, color: colors.textPrimary },
+  dropdownItemHint: {
+    ...typography.small,
+    color: colors.textTertiary,
+    marginTop: 4,
+    lineHeight: 17,
+  },
   dropdownCheck: { ...typography.body, color: colors.mintGreen, fontWeight: '700' },
+
+  imageStatusCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  imageStatusCardError: {
+    backgroundColor: 'rgba(208, 83, 83, 0.10)',
+    borderColor: 'rgba(208, 83, 83, 0.2)',
+  },
+  imageStatusText: {
+    ...typography.small,
+    flex: 1,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  imageStatusTextError: {
+    color: colors.error,
+  },
 
   generateBtn: {
     backgroundColor: colors.deepTeal, padding: spacing.md,
@@ -1269,8 +1417,18 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md, marginTop: spacing.sm,
     borderWidth: 1, borderColor: colors.softTeal,
   },
+  generateBtnDisabled: {
+    opacity: 0.45,
+  },
   generateBtnSubtle: { borderColor: colors.deepTeal, opacity: 0.8 },
-  generateBtnText: { ...typography.body, color: colors.mintGreen },
+  generateBtnText: { ...typography.body, color: colors.mintGreen, fontWeight: '700' },
+  generateBtnSubtext: {
+    ...typography.small,
+    color: colors.textSecondary,
+    marginTop: 6,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
 
   // Loading shimmer box
   imageLoadingBox: {
@@ -1283,9 +1441,32 @@ const styles = StyleSheet.create({
   imageLoadingInner: { alignItems: 'center', gap: spacing.sm },
   imageLoadingIcon: { fontSize: 44 },
   imageLoadingText: { ...typography.body, color: colors.mintGreen, fontWeight: '500' },
+  imageLoadingSubtext: {
+    ...typography.small,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
 
   aiImageWrap: { marginBottom: spacing.md },
-  aiImage: { width: '100%', height: 200, borderRadius: borderRadius.md, marginBottom: spacing.sm },
+  imagePreviewFrame: {
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    marginBottom: spacing.sm,
+  },
+  aiImage: { width: '100%', height: 220, borderRadius: borderRadius.md },
+  aiImageLoading: {
+    opacity: 0.28,
+  },
+  imageOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(9, 25, 23, 0.42)',
+    paddingHorizontal: spacing.lg,
+  },
   aiImageMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   aiImageLabel: { ...typography.caption, color: colors.textSecondary },
   aiImagePending: { ...typography.small, color: colors.mintGreen, fontStyle: 'italic' },

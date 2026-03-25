@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
+from textwrap import shorten
 
 import httpx
 
@@ -16,15 +18,47 @@ MOOD_KEYWORDS = {
     "calm": ("quiet", "sleep", "mist", "night", "moon"),
 }
 
-PLACEHOLDER_IMAGE_URLS = {
-    "realistic": "https://images.unsplash.com/photo-1448375240586-882707db888b?w=1200&h=800&fit=crop",
-    "3d-cartoon": "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=1200&h=800&fit=crop",
-    "anime": "https://images.unsplash.com/photo-1511497584788-876760111969?w=1200&h=800&fit=crop",
-    "watercolor": "https://images.unsplash.com/photo-1518241353330-0f7941c2d9b5?w=1200&h=800&fit=crop",
-    "oil-paint": "https://images.unsplash.com/photo-1501854140801-50d01698950b?w=1200&h=800&fit=crop",
-    "sketch": "https://images.unsplash.com/photo-1529429617124-aee711a5ac1c?w=1200&h=800&fit=crop",
-    "fantasy": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&h=800&fit=crop",
+IMAGE_STYLE_PROMPTS = {
+    "realistic": (
+        "photorealistic cinematic scene, natural lighting, believable textures, "
+        "immersive atmosphere, high detail, emotionally grounded"
+    ),
+    "3d-cartoon": (
+        "stylized 3D cartoon render, expressive characters, soft global illumination, "
+        "playful shapes, polished animation-film look"
+    ),
+    "anime": (
+        "anime illustration, dynamic framing, expressive linework, cel shading, "
+        "dreamlike color design, manga-inspired composition"
+    ),
+    "watercolor": (
+        "watercolor painting, translucent pigments, soft bleeding edges, layered washes, "
+        "poetic and airy mood"
+    ),
+    "oil-paint": (
+        "oil painting, rich brushwork, painterly texture, dramatic lighting, "
+        "gallery-quality composition"
+    ),
+    "sketch": (
+        "pencil sketch, graphite shading, hand-drawn texture, subtle paper grain, "
+        "moody monochrome illustration"
+    ),
+    "fantasy": (
+        "epic fantasy artwork, mystical environment, magical glow, surreal scale, "
+        "ornate details, cinematic wonder"
+    ),
 }
+
+GROK_IMAGE_MODEL_ALIASES = {
+    "grok image": "grok-imagine-1.0",
+    "grok imagine": "grok-imagine-1.0",
+}
+
+
+@dataclass
+class GeneratedImage:
+    content: bytes
+    mime_type: str
 
 
 class AIService:
@@ -69,23 +103,82 @@ class AIService:
             configured=True,
         )
 
-    def generate_image_url(self, payload: GenerateDreamImageRequest) -> tuple[str, bool]:
+    def generate_image(self, *, dream, payload: GenerateDreamImageRequest) -> GeneratedImage:
         if not self.settings.ai_image_enabled:
             raise AIServiceNotConfiguredError("AI image service is not configured.")
+        if "huggingface.co" in self.settings.ai_image_base_url:
+            return self._generate_huggingface_image(dream=dream, payload=payload)
+
+        image_url = self._generate_grok_image_url(dream=dream, payload=payload)
+        return GeneratedImage(content=image_url.encode("utf-8"), mime_type="text/uri-list")
+
+    def _generate_grok_image_url(self, *, dream, payload: GenerateDreamImageRequest) -> str:
         response_data = self._post_json(
             base_url=self.settings.ai_image_base_url,
             api_key=self.settings.ai_image_api_key,
-            path="/images/generations",
+            path="/v1/images/generations",
             payload={
-                "model": self.settings.ai_image_model,
-                "prompt": self._build_image_prompt(payload.style),
-                "size": "1024x1024",
+                "model": self._resolve_image_model_name(self.settings.ai_image_model),
+                "prompt": self._build_image_prompt(
+                    style=payload.style,
+                    transcript=dream.transcript,
+                    title=dream.title,
+                    mood=dream.mood,
+                    tags=dream.tags_json or [],
+                ),
+                "n": 1,
+                "size": "1536x1024",
+                "response_format": "url",
             },
         )
-        image_url = response_data.get("data", [{}])[0].get("url")
-        if not image_url:
+        image_data = (response_data.get("data") or [{}])[0]
+        image_url = image_data.get("url")
+        image_b64 = image_data.get("b64_json")
+
+        if image_url and image_url != "error":
+            return image_url
+        if image_b64 and image_b64 != "error":
+            return f"data:image/png;base64,{image_b64}"
+        if image_url == "error" or image_b64 == "error":
+            raise AIServiceRequestError(
+                "Grok image service accepted the request but returned an invalid image payload."
+            )
+        if not image_url and not image_b64:
             raise AIServiceRequestError("AI image service did not return an image URL.")
-        return image_url, True
+        return image_url or image_b64
+
+    def _generate_huggingface_image(self, *, dream, payload: GenerateDreamImageRequest) -> GeneratedImage:
+        prompt = self._build_image_prompt(
+            style=payload.style,
+            transcript=dream.transcript,
+            title=dream.title,
+            mood=dream.mood,
+            tags=dream.tags_json or [],
+        )
+        response = self._post_raw(
+            url=self.settings.ai_image_base_url,
+            api_key=self.settings.ai_image_api_key,
+            payload={
+                "inputs": prompt,
+                "parameters": {
+                    "width": 1536,
+                    "height": 1024,
+                    "num_inference_steps": 4,
+                    "guidance_scale": 3.5,
+                },
+                "options": {
+                    "wait_for_model": True,
+                    "use_cache": False,
+                },
+            },
+        )
+        content_type = response.headers.get("content-type", "")
+        if not content_type.startswith("image/"):
+            preview = response.text[:300]
+            raise AIServiceRequestError(
+                f"Hugging Face image service returned an unexpected content type '{content_type}': {preview}"
+            )
+        return GeneratedImage(content=response.content, mime_type=content_type.split(";")[0].strip())
 
     def _fallback_mood(self, transcript: str) -> str:
         lowered = transcript.lower()
@@ -112,11 +205,35 @@ class AIService:
             normalized.append(cleaned[:50])
         return normalized[:5]
 
-    def _build_image_prompt(self, style: str) -> str:
+    def _build_image_prompt(
+        self,
+        *,
+        style: str,
+        transcript: str,
+        title: str | None,
+        mood: str | None,
+        tags: list[str],
+    ) -> str:
+        style_prompt = IMAGE_STYLE_PROMPTS.get(style, IMAGE_STYLE_PROMPTS["realistic"])
+        normalized_tags = ", ".join(tag.strip() for tag in tags if tag.strip()) or "dream symbols"
+        transcript_excerpt = shorten(" ".join(transcript.split()), width=420, placeholder="...")
+        mood_text = mood or self._fallback_mood(transcript)
+        title_text = title.strip() if title else "Untitled dream"
         return (
-            "Dreamlike scene inspired by a user dream journal entry, "
-            f"rendered in {style} style, cinematic, atmospheric, mystical, detailed."
+            "Create a single dream illustration in a 4:3 landscape composition. "
+            f"Dream title: {title_text}. "
+            f"Dominant feeling: {mood_text}. "
+            f"Key symbols: {normalized_tags}. "
+            f"Dream description: {transcript_excerpt}. "
+            f"Visual direction: {style_prompt}. "
+            "Keep the image visually coherent, surreal but readable, and avoid any text, watermark, UI, split panels, or collage."
         )
+
+    def _resolve_image_model_name(self, configured_model: str) -> str:
+        normalized = configured_model.strip()
+        if not normalized:
+            return "grok-imagine-1.0"
+        return GROK_IMAGE_MODEL_ALIASES.get(normalized.lower(), normalized)
 
     def _post_json(self, *, base_url: str, api_key: str, path: str, payload: dict) -> dict:
         url = f"{base_url.rstrip('/')}{path}"
@@ -135,6 +252,27 @@ class AIService:
         except httpx.HTTPStatusError as exc:
             raise AIServiceRequestError(
                 f"AI service request failed with status {exc.response.status_code}: {exc.response.text[:300]}"
+            ) from exc
+        except httpx.HTTPError as exc:
+            raise AIServiceRequestError(f"AI service request failed: {exc}") from exc
+
+    def _post_raw(self, *, url: str, api_key: str, payload: dict) -> httpx.Response:
+        try:
+            with httpx.Client(timeout=self.settings.ai_timeout_seconds * 2) as client:
+                response = client.post(
+                    url,
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json=payload,
+                )
+                response.raise_for_status()
+                return response
+        except httpx.HTTPStatusError as exc:
+            body_preview = exc.response.text[:300]
+            raise AIServiceRequestError(
+                f"AI service request failed with status {exc.response.status_code}: {body_preview}"
             ) from exc
         except httpx.HTTPError as exc:
             raise AIServiceRequestError(f"AI service request failed: {exc}") from exc

@@ -44,3 +44,5 @@ __pycache__/
 .env.*
 !.env.backend.example
 .env.backend
+storage/generated-images/*
+!storage/generated-images/.gitkeep

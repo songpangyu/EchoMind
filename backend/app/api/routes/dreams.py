@@ -40,6 +40,7 @@ def build_dream_response(dream) -> DreamResponse:
 
 
 @router.post("", response_model=DreamResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=DreamResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 def create_dream(payload: CreateDreamRequest, db: Session = Depends(get_db)) -> DreamResponse:
     if not payload.transcript.strip():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Transcript cannot be empty.")
@@ -49,6 +50,7 @@ def create_dream(payload: CreateDreamRequest, db: Session = Depends(get_db)) -> 
 
 
 @router.get("", response_model=DreamListResponse)
+@router.get("/", response_model=DreamListResponse, include_in_schema=False)
 def list_dreams(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),

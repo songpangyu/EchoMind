@@ -1,3 +1,4 @@
+from pathlib import Path
 from functools import lru_cache
 
 from pydantic import Field
@@ -10,6 +11,7 @@ class Settings(BaseSettings):
     app_port: int = Field(default=8000, alias="APP_PORT")
     app_name: str = Field(default="EchoMind API", alias="APP_NAME")
     app_base_path: str = Field(default="/api/v1", alias="APP_BASE_PATH")
+    app_public_base_url: str = Field(default="http://127.0.0.1:18000", alias="APP_PUBLIC_BASE_URL")
     debug: bool = Field(default=False, alias="APP_DEBUG")
 
     mysql_host: str = Field(default="127.0.0.1", alias="MYSQL_HOST")
@@ -27,6 +29,7 @@ class Settings(BaseSettings):
     ai_image_base_url: str = Field(default="", alias="AI_IMAGE_BASE_URL")
     ai_image_model: str = Field(default="", alias="AI_IMAGE_MODEL")
     ai_timeout_seconds: int = Field(default=60, alias="AI_TIMEOUT_SECONDS")
+    generated_media_dir: str = Field(default="storage/generated-images", alias="GENERATED_MEDIA_DIR")
 
     cors_origins: str = Field(default="*", alias="CORS_ORIGINS")
 
@@ -67,6 +70,10 @@ class Settings(BaseSettings):
     @property
     def ai_image_enabled(self) -> bool:
         return bool(self.ai_image_api_key and self.ai_image_base_url and self.ai_image_model)
+
+    @property
+    def generated_media_path(self) -> Path:
+        return Path(self.generated_media_dir).resolve()
 
 
 @lru_cache

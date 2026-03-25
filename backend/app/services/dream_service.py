@@ -1,10 +1,12 @@
+import uuid
+
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.models.dream import Dream
 from app.schemas.dream import CreateDreamRequest, DreamResponse, GenerateDreamImageRequest, UpdateDreamRequest
-from app.services.ai_service import AIService, AIServiceNotConfiguredError
+from app.services.ai_service import AIService, GeneratedImage
 
 
 class DreamService:
@@ -112,14 +114,41 @@ class DreamService:
         self.db.add(dream)
         self.db.commit()
 
-        image_url, _configured = self.ai_service.generate_image_url(payload)
-        dream.ai_image_style = payload.style
-        dream.ai_image_url = image_url
-        dream.ai_image_status = "completed"
-        self.db.add(dream)
-        self.db.commit()
-        self.db.refresh(dream)
-        return dream
+        try:
+            generated_image = self.ai_service.generate_image(dream=dream, payload=payload)
+            image_url = self._persist_generated_image(dream.id, payload.style, generated_image)
+            dream.ai_image_style = payload.style
+            dream.ai_image_url = image_url
+            dream.ai_image_status = "completed"
+            self.db.add(dream)
+            self.db.commit()
+            self.db.refresh(dream)
+            return dream
+        except Exception:
+            dream.ai_image_status = "failed"
+            self.db.add(dream)
+            self.db.commit()
+            self.db.refresh(dream)
+            raise
+
+    def _persist_generated_image(self, dream_id: str, style: str, generated_image: GeneratedImage) -> str:
+        if generated_image.mime_type == "text/uri-list":
+            return generated_image.content.decode("utf-8")
+
+        extension = self._extension_for_mime_type(generated_image.mime_type)
+        filename = f"{dream_id}-{style}-{uuid.uuid4().hex[:10]}.{extension}"
+        destination = self.settings.generated_media_path / filename
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(generated_image.content)
+        return f"{self.settings.app_public_base_url.rstrip('/')}/media/{filename}"
+
+    def _extension_for_mime_type(self, mime_type: str) -> str:
+        mapping = {
+            "image/jpeg": "jpg",
+            "image/png": "png",
+            "image/webp": "webp",
+        }
+        return mapping.get(mime_type, "jpg")
 
 
 class DreamNotFoundError(Exception):

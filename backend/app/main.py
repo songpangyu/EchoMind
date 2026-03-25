@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 from app.api.routes.ai import router as ai_router
@@ -16,6 +17,7 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    settings.generated_media_path.mkdir(parents=True, exist_ok=True)
     db = SessionLocal()
     try:
         db.execute(text("SELECT 1"))
@@ -39,6 +41,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.mount("/media", StaticFiles(directory=settings.generated_media_path), name="media")
 
 
 @app.get("/", include_in_schema=False)

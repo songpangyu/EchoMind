@@ -8,5 +8,6 @@ services:
       - .env.backend
     ports:
       - "127.0.0.1:18000:8000"
+    volumes:
+      - ./storage/generated-images:/app/storage/generated-images
     restart: unless-stopped
-
