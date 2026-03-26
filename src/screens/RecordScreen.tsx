@@ -218,10 +218,10 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
     const finalTranscript = typeof nextTranscript === 'string'
       ? nextTranscript
       : resolveTranscriptSnapshot(
-          transcriptValueRef.current,
-          accumulatedTranscriptRef.current,
-          liveTranscriptRef.current,
-        );
+        transcriptValueRef.current,
+        accumulatedTranscriptRef.current,
+        liveTranscriptRef.current,
+      );
     accumulatedTranscriptRef.current = finalTranscript;
     liveTranscriptRef.current = '';
     pendingStopActionRef.current = null;
@@ -924,14 +924,7 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
                 )}
 
                 {/* AI Image — style picker + generate */}
-                <Text style={styles.detailLabel}>Generate AI Image</Text>
-                <View style={styles.imageSectionIntro}>
-                  <View style={styles.imageHintBadge}>
-                    <Icon name={selectedArtStyle.icon} size={16} color={colors.mintGreen} />
-                    <Text style={styles.imageHintBadgeText}>4:3 Dream Artwork</Text>
-                  </View>
-                  <Text style={styles.imageSectionHint}>{selectedArtStyle.hint}</Text>
-                </View>
+
 
                 {/* Style dropdown trigger */}
                 <TouchableOpacity
@@ -1004,9 +997,9 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
                         ? `Try ${selectedArtStyle.label} Again`
                         : imageGenState === 'idle'
                           ? `Generate ${selectedArtStyle.label}`
-                        : imageStyleId !== generatedStyleId
-                          ? `Regenerate in ${ART_STYLES.find(s => s.id === imageStyleId)?.label}`
-                          : 'Regenerate'}
+                          : imageStyleId !== generatedStyleId
+                            ? `Regenerate in ${ART_STYLES.find(s => s.id === imageStyleId)?.label}`
+                            : 'Regenerate'}
                     </Text>
                     <Text style={styles.generateBtnSubtext}>
                       {!hasTranscript

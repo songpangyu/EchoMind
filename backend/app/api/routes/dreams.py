@@ -70,6 +70,7 @@ def list_dreams(
 
 
 @router.get("/{dream_id}", response_model=DreamResponse)
+@router.get("/{dream_id}/", response_model=DreamResponse, include_in_schema=False)
 def get_dream(dream_id: str, db: Session = Depends(get_db)) -> DreamResponse:
     service = DreamService(db)
     try:
@@ -80,6 +81,7 @@ def get_dream(dream_id: str, db: Session = Depends(get_db)) -> DreamResponse:
 
 
 @router.patch("/{dream_id}", response_model=DreamResponse)
+@router.patch("/{dream_id}/", response_model=DreamResponse, include_in_schema=False)
 def update_dream(dream_id: str, payload: UpdateDreamRequest, db: Session = Depends(get_db)) -> DreamResponse:
     service = DreamService(db)
     try:
@@ -92,6 +94,7 @@ def update_dream(dream_id: str, payload: UpdateDreamRequest, db: Session = Depen
 
 
 @router.post("/{dream_id}/ai-autofill", response_model=AIAutofillResponse)
+@router.post("/{dream_id}/ai-autofill/", response_model=AIAutofillResponse, include_in_schema=False)
 def generate_ai_autofill(dream_id: str, db: Session = Depends(get_db)) -> AIAutofillResponse:
     service = DreamService(db)
     try:
@@ -118,6 +121,7 @@ def generate_ai_autofill(dream_id: str, db: Session = Depends(get_db)) -> AIAuto
 
 
 @router.post("/{dream_id}/ai-image", response_model=DreamResponse)
+@router.post("/{dream_id}/ai-image/", response_model=DreamResponse, include_in_schema=False)
 def generate_ai_image(
     dream_id: str,
     payload: GenerateDreamImageRequest,
