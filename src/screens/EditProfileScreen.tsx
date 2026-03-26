@@ -6,6 +6,7 @@ import { GlassCard } from '../components/GlassCard';
 import { colors, spacing, typography, borderRadius } from '../theme';
 import Icon from '../components/Icon';
 import { FloatingParticles } from '../components/FloatingParticles';
+import { ScreenWrapper } from '../components/ScreenWrapper';
 
 export const EditProfileScreen: React.FC = () => {
     const insets = useSafeAreaInsets();
@@ -13,6 +14,7 @@ export const EditProfileScreen: React.FC = () => {
     const [name, setName] = useState('Dreamer');
 
     return (
+        <ScreenWrapper>
         <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
             <FloatingParticles />
             <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
@@ -48,6 +50,7 @@ export const EditProfileScreen: React.FC = () => {
                 </View>
             </ScrollView>
         </KeyboardAvoidingView>
+        </ScreenWrapper>
     );
 };
 

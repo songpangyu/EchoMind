@@ -134,7 +134,7 @@ export const TabNavigator: React.FC = () => {
   }, [slideAnim, backdropAnim]);
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1,backgroundColor: colors.background }}>
       <StatusBar barStyle="light-content" />
       <InnerTabs onRecordPress={openRecord} />
 

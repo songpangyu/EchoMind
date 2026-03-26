@@ -17,6 +17,19 @@ import { colors, spacing, typography, borderRadius } from '../theme';
 import { RootStackParamList } from '../navigation/types';
 import Icon, { IconName } from '../components/Icon';
 import { getDream, updateDream, type Dream, type DreamMood } from '../api/dreams';
+import { ScreenWrapper } from '../components/ScreenWrapper';
+
+// ─── Mock dream data (in real app these come from route params / store) ────────
+const DREAM = {
+    title: 'Fireflies in the Misty Forest',
+    date: 'March 7, 2026 · 6:42 AM',
+    duration: '0:38',
+    mood: { emoji: '😌', label: 'Peaceful' },
+    tags: ['Forest', 'Night', 'Fireflies', 'Nature', 'Peaceful'],
+    imageUri: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&h=500&fit=crop',
+    imageStyle: '📷 Realistic',
+    transcript: 'I was walking through a misty forest at night. The trees were enormous, like ancient guardians. Tiny glowing fireflies danced around me, leaving trails of golden light. I could hear a gentle stream nearby and the air smelled like pine and rain...',
+};
 
 // ─── AI interpretation per perspective ────────────────────────────────────────
 type Perspective = 'life' | 'work' | 'relationship' | 'emotion' | 'spiritual';
@@ -225,6 +238,7 @@ export const DreamDetailScreen: React.FC = () => {
         : 'No AI image yet';
 
     return (
+        <ScreenWrapper>
         <View style={styles.container}>
             <FloatingParticles />
             <ScrollView showsVerticalScrollIndicator={false}>
@@ -421,6 +435,7 @@ export const DreamDetailScreen: React.FC = () => {
                 </Animated.View>
             )}
         </View >
+        </ScreenWrapper>
     );
 };
 

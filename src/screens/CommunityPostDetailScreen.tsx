@@ -18,6 +18,7 @@ import { colors, spacing, typography, borderRadius } from '../theme';
 import Icon from '../components/Icon';
 import { GlassCard } from '../components/GlassCard';
 import { FloatingParticles } from '../components/FloatingParticles';
+import { ScreenWrapper } from '../components/ScreenWrapper';
 
 export const CommunityPostDetailScreen: React.FC = () => {
     const insets = useSafeAreaInsets();
@@ -53,6 +54,7 @@ export const CommunityPostDetailScreen: React.FC = () => {
     };
 
     return (
+        <ScreenWrapper>
         <View style={styles.container}>
             <FloatingParticles />
 
@@ -156,6 +158,7 @@ export const CommunityPostDetailScreen: React.FC = () => {
                 </View>
             </KeyboardAvoidingView>
         </View>
+        </ScreenWrapper>
     );
 };
 

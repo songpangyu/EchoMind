@@ -38,6 +38,7 @@ import {
   updateDream,
   type DreamMood,
 } from '../api/dreams';
+import { ScreenWrapper } from '../components/ScreenWrapper';
 
 const ART_STYLES: { id: string; label: string; icon: IconName; uri: string; hint: string }[] = [
   { id: 'realistic', label: 'Realistic', icon: 'image', uri: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=600&h=400&fit=crop', hint: 'Natural lighting, grounded detail, cinematic realism.' },
@@ -639,6 +640,7 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
   const pulseBtnStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
   return (
+    <ScreenWrapper>
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -1087,6 +1089,7 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
         </ScrollView>
       </View>
     </KeyboardAvoidingView>
+    </ScreenWrapper>
   );
 };
 

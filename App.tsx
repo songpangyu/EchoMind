@@ -18,7 +18,17 @@ const Stack = createStackNavigator<RootStackParamList>();
 
 const App: React.FC = () => {
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={{
+    dark: true,
+    colors: {
+      primary: colors.mintGreen,
+      background: colors.background,   // ⭐ key point(solve the white flash issue)
+      card: colors.surface,
+      text: colors.textPrimary,
+      border: colors.deepTeal,
+      notification: colors.mintGreen,
+    },
+  }}>
       <StatusBar barStyle="light-content" backgroundColor={colors.background} />
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="MainTabs" component={TabNavigator} />

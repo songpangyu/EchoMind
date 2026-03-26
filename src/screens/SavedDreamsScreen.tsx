@@ -6,6 +6,7 @@ import { colors, spacing, typography, borderRadius } from '../theme';
 import Icon from '../components/Icon';
 import { GlassCard } from '../components/GlassCard';
 import { FloatingParticles } from '../components/FloatingParticles';
+import { ScreenWrapper } from '../components/ScreenWrapper';
 
 const SAVED_POSTS = [
     {
@@ -27,6 +28,7 @@ export const SavedDreamsScreen: React.FC = () => {
     const navigation = useNavigation();
 
     return (
+        <ScreenWrapper>
         <View style={styles.container}>
             <FloatingParticles />
             <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
@@ -85,6 +87,7 @@ export const SavedDreamsScreen: React.FC = () => {
                 <View style={{ height: 100 }} />
             </ScrollView>
         </View>
+        </ScreenWrapper>
     );
 };
 

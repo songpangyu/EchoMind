@@ -15,14 +15,15 @@ import { FloatingParticles } from '../components/FloatingParticles';
 import { colors, spacing, typography, borderRadius } from '../theme';
 import { RootStackParamList } from '../navigation/types';
 import Icon, { IconName } from '../components/Icon';
+import { ScreenWrapper } from '../components/ScreenWrapper';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const getGreeting = (): { text: string; icon: IconName } => {
   const h = new Date().getHours();
   if (h < 5) return { text: 'Good Night', icon: 'moon' };
-  if (h < 12) return { text: 'Good Morning', icon: 'sunrise' };
+  if (h < 12) return { text: 'Good Morning', icon: 'sun' };
   if (h < 18) return { text: 'Good Afternoon', icon: 'sun' };
-  return { text: 'Good Evening', icon: 'sunset' };
+  return { text: 'Good Evening', icon: 'moon' };
 };
 
 const formatDate = () =>
@@ -85,13 +86,17 @@ export const HomeScreen: React.FC = () => {
   const reflection = useMemo(() => DAILY_REFLECTION[new Date().getDate() % DAILY_REFLECTION.length], []);
 
   return (
+    <ScreenWrapper>
     <View style={styles.container}>
       <FloatingParticles />
       <ScrollView showsVerticalScrollIndicator={false}>
 
         {/* ── Header ── */}
         <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-          <Text style={styles.greeting}><Icon name={greeting.icon} size={20} color={colors.mintGreen} />  {greeting.text}</Text>
+          <View style={styles.greetingRow}>
+            <Icon name={greeting.icon} size={20} color={colors.mintGreen} />
+            <Text style={styles.greeting}> {greeting.text}</Text>
+          </View>
           <Text style={styles.date}>{dateStr}</Text>
         </View>
 
@@ -227,6 +232,7 @@ export const HomeScreen: React.FC = () => {
         <View style={{ height: 120 }} />
       </ScrollView>
     </View>
+    </ScreenWrapper>
   );
 };
 
@@ -234,9 +240,15 @@ export const HomeScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
 
-  header: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
-  greeting: { ...typography.h1, color: colors.textPrimary, marginBottom: 4 },
-  date: { ...typography.caption, color: colors.textSecondary },
+  header: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md,alignItems: 'center' },
+  greetingRow: {
+  flexDirection: 'row',
+  alignItems: 'center',     // ⭐ key：vertically center the icon and text
+  justifyContent: 'center',
+},
+  greeting: { ...typography.h1, fontSize: 22, fontWeight: '600',letterSpacing: 0.3,
+    color: colors.textPrimary, marginBottom: 4,textAlign: 'center' },
+  date: { ...typography.caption, color: colors.textSecondary, textAlign: 'center' },
 
   dreamCard: { marginHorizontal: spacing.lg, marginBottom: spacing.lg, padding: 0, overflow: 'hidden' },
   dreamImageWrap: { position: 'relative' },
@@ -264,7 +276,7 @@ const styles = StyleSheet.create({
   reflectionHint: { ...typography.caption, color: colors.mintGreen },
 
   trendSubtitle: { ...typography.caption, color: colors.textTertiary, marginBottom: spacing.md },
-  trendRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: spacing.md },
+  trendRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: spacing.md },//aligning items to the bottom of the row（space-between）
   trendItem: { flex: 1, alignItems: 'center', gap: 4 },
   trendEmoji: { fontSize: 16 },
   trendBar: { width: 8, height: 36, borderRadius: 4 },
@@ -275,10 +287,10 @@ const styles = StyleSheet.create({
   legendText: { ...typography.small, color: colors.textTertiary },
 
   aiLabel: { ...typography.caption, color: colors.mintGreen, fontWeight: '700', marginBottom: spacing.sm },
-  insightText: { ...typography.body, color: colors.textSecondary, lineHeight: 22, marginBottom: spacing.md },
+  insightText: { ...typography.body, color: colors.textSecondary, lineHeight: 18,  marginBottom: spacing.md },
   symbolRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   symbolChip: { backgroundColor: colors.surface, paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: borderRadius.sm },
-  symbolText: { ...typography.small, color: colors.textSecondary },
+  symbolText: { ...typography.small, color: colors.mintGreen, fontWeight: '600' },
 
   suggestionsRow: { gap: spacing.md },
   suggestionCard: { width: 175, flexShrink: 0 },
@@ -288,11 +300,11 @@ const styles = StyleSheet.create({
 
   statsCard: { padding: 0, overflow: 'hidden' },
   statsRow: { flexDirection: 'row' },
-  statItem: { flex: 1, alignItems: 'center', paddingVertical: spacing.lg, paddingHorizontal: spacing.sm },
+  statItem: { flex: 1, alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.lg, paddingHorizontal: spacing.sm },
   statBigValue: { ...typography.h1, color: colors.mintGreen, marginBottom: 4 },
   statEmoji: { fontSize: 28, marginBottom: 4 },
   statMoodValue: { ...typography.h3, color: colors.mintGreen, fontWeight: '700', marginBottom: 2 },
-  statLabel: { ...typography.caption, color: colors.textTertiary, textAlign: 'center' },
+  statLabel: { ...typography.caption, color: colors.textTertiary, textAlign: 'center',fontWeight: '500', },
   statDividerV: { width: 1, backgroundColor: colors.deepTeal, marginVertical: spacing.md },
   statDividerH: { height: 1, backgroundColor: colors.deepTeal },
 });

@@ -4,12 +4,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, typography, borderRadius } from '../theme';
 import { FloatingParticles } from '../components/FloatingParticles';
+import { ScreenWrapper } from '../components/ScreenWrapper';
 
 export const PrivacyScreen: React.FC = () => {
     const insets = useSafeAreaInsets();
     const navigation = useNavigation();
 
     return (
+        <ScreenWrapper>
         <View style={styles.container}>
             <FloatingParticles />
             <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
@@ -37,6 +39,7 @@ export const PrivacyScreen: React.FC = () => {
                 </Text>
             </ScrollView>
         </View>
+        </ScreenWrapper>
     );
 };
 

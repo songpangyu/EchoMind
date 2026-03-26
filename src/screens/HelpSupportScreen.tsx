@@ -5,12 +5,14 @@ import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, typography, borderRadius } from '../theme';
 import { FloatingParticles } from '../components/FloatingParticles';
 import { GlassCard } from '../components/GlassCard';
+import { ScreenWrapper } from '../components/ScreenWrapper';
 
 export const HelpSupportScreen: React.FC = () => {
     const insets = useSafeAreaInsets();
     const navigation = useNavigation();
 
     return (
+        <ScreenWrapper>
         <View style={styles.container}>
             <FloatingParticles />
             <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
@@ -45,6 +47,7 @@ export const HelpSupportScreen: React.FC = () => {
 
             </ScrollView>
         </View>
+        </ScreenWrapper>
     );
 };
 

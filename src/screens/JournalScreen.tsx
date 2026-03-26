@@ -20,6 +20,7 @@ import { colors, spacing, typography, borderRadius } from '../theme';
 import { RootStackParamList } from '../navigation/types';
 import Icon, { IconName } from '../components/Icon';
 import { listDreams, type Dream, type DreamMood } from '../api/dreams';
+import { ScreenWrapper } from '../components/ScreenWrapper';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 type DreamEntry = {
@@ -521,6 +522,7 @@ export const JournalScreen: React.FC = () => {
   // ── Main render ──
   // ─────────────────────────────────────────────────────────────────────────
   return (
+    <ScreenWrapper>
     <View style={styles.container}>
       <FloatingParticles />
 
@@ -693,7 +695,7 @@ export const JournalScreen: React.FC = () => {
 
             <GlassCard style={styles.journalStatsCard}>
               <View style={styles.journalStatsHeader}>
-                <Text style={styles.journalStatsTitle}>JOURNAL STATS</Text>
+                <Text style={styles.journalStatsTitle}>Journal Stats</Text>
               </View>
               <View style={styles.journalStatsGrid}>
                 <View style={styles.journalStatBox}>
@@ -890,6 +892,7 @@ export const JournalScreen: React.FC = () => {
         </Animated.View>
       )}
     </View>
+    </ScreenWrapper>
   );
 };
 
@@ -994,7 +997,7 @@ const styles = StyleSheet.create({
   // Journal stats dashboard
   journalStatsCard: { marginHorizontal: spacing.lg, marginBottom: spacing.md },
   journalStatsHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md },
-  journalStatsTitle: { ...typography.small, color: colors.textTertiary, fontWeight: '700', letterSpacing: 1.2 },
+  journalStatsTitle: { ...typography.small, color: colors.textTertiary, fontWeight: '700', letterSpacing: 1.2,fontSize: 14 },
   journalStatsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   journalStatBox: {
     width: '47%' as any, backgroundColor: colors.surface,
@@ -1013,7 +1016,7 @@ const styles = StyleSheet.create({
   unrecordedChip: {
     backgroundColor: 'rgba(198,126,126,0.12)', borderRadius: borderRadius.full,
     paddingHorizontal: spacing.sm, paddingVertical: 3,
-    borderWidth: 1, borderColor: 'rgba(198,126,126,0.25)',
+    borderWidth: 1, borderColor: 'rgba(240, 126, 126, 0.25)',
   },
   unrecordedChipText: { ...typography.small, color: colors.error },
 

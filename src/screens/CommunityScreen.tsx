@@ -20,6 +20,7 @@ import { FloatingParticles } from '../components/FloatingParticles';
 import { colors, spacing, typography, borderRadius } from '../theme';
 import Icon from '../components/Icon';
 import { TabParamList, RootStackParamList } from '../navigation/types';
+import { ScreenWrapper } from '../components/ScreenWrapper';
 
 // ─── My new shared post ────────────────────────────────────────────────────────
 const MY_POST = {
@@ -275,6 +276,7 @@ export const CommunityScreen: React.FC = () => {
   };
 
   return (
+    <ScreenWrapper>
     <View style={styles.container}>
       <FloatingParticles />
 
@@ -386,6 +388,7 @@ export const CommunityScreen: React.FC = () => {
       </Modal>
 
     </View>
+    </ScreenWrapper>
   );
 };
 

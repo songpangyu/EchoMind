@@ -6,6 +6,7 @@ import { colors, spacing, typography, borderRadius } from '../theme';
 import { GlassCard } from '../components/GlassCard';
 import { FloatingParticles } from '../components/FloatingParticles';
 import Icon from '../components/Icon';
+import { ScreenWrapper } from '../components/ScreenWrapper';
 
 const DUMMY_NOTIFICATIONS = [
     { id: '1', type: 'like', text: 'River liked your dream "Fireflies in the Misty Forest"', time: '10m ago', unread: true },
@@ -19,6 +20,7 @@ export const NotificationsScreen: React.FC = () => {
     const navigation = useNavigation();
 
     return (
+        <ScreenWrapper>
         <View style={styles.container}>
             <FloatingParticles />
             <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
@@ -47,6 +49,7 @@ export const NotificationsScreen: React.FC = () => {
                 <View style={{ height: 100 }} />
             </ScrollView>
         </View>
+        </ScreenWrapper>
     );
 };
 

@@ -15,6 +15,7 @@ import { colors, spacing, typography, borderRadius } from '../theme';
 import { FloatingParticles } from '../components/FloatingParticles';
 import { GlassCard } from '../components/GlassCard';
 import Icon from '../components/Icon';
+import { ScreenWrapper } from '../components/ScreenWrapper';
 
 // Dummy posts for user profile
 const USER_POSTS = [
@@ -43,6 +44,7 @@ export const CommunityProfileScreen: React.FC = () => {
     const { username } = route.params;
 
     return (
+        <ScreenWrapper>
         <View style={styles.container}>
             <FloatingParticles />
 
@@ -99,6 +101,7 @@ export const CommunityProfileScreen: React.FC = () => {
                 <View style={{ height: 100 }} />
             </ScrollView>
         </View>
+        </ScreenWrapper>
     );
 };
 

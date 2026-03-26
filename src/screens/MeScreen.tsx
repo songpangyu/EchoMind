@@ -15,6 +15,7 @@ import { GlassCard } from '../components/GlassCard';
 import { FloatingParticles } from '../components/FloatingParticles';
 import { colors, spacing, typography, borderRadius } from '../theme';
 import Icon, { IconName } from '../components/Icon';
+import { ScreenWrapper } from '../components/ScreenWrapper';
 
 const { width } = Dimensions.get('window');
 
@@ -64,6 +65,7 @@ export const MeScreen: React.FC = () => {
     const maxMonthly = Math.max(...MONTHLY_DREAMS);
 
     return (
+        <ScreenWrapper>
         <View style={styles.container}>
             <FloatingParticles />
             <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -272,6 +274,7 @@ export const MeScreen: React.FC = () => {
                 <View style={{ height: 100 }} />
             </ScrollView>
         </View>
+        </ScreenWrapper>
     );
 };
 
