@@ -145,6 +145,21 @@ export type HomeStats = {
   lastDream: Dream | null;
 };
 
+export type AiInsightSymbol = {
+  icon: string;
+  text: string;
+};
+
+export type AiInsightResponse = {
+  insightText: string;
+  symbols: AiInsightSymbol[];
+};
+
+export const getAiInsight = () =>
+  apiRequest<AiInsightResponse>('/stats/ai-insight', {
+    method: 'GET',
+  });
+
 export type MoodDistribution = {
   mood: string;
   count: number;

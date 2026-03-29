@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.models.dream import Dream
+from app.models.user import User
 from app.schemas.dream import (
     CreateDreamRequest,
     DreamResponse,
@@ -17,6 +18,7 @@ from app.schemas.dream import (
     MoodTrend,
     TagFrequency,
     UpdateDreamRequest,
+    AiInsightResponse,
 )
 from app.services.ai_service import AIService, GeneratedImage
 
@@ -185,6 +187,59 @@ class DreamService:
             recentMoodTrend=recent_mood_trend,
             lastDream=last_dream,
         )
+
+    def get_ai_insight(self) -> AiInsightResponse:
+        """Return the persisted AI insight from the user record (instant DB read)."""
+        user = self.db.scalars(
+            select(User).where(User.id == self.settings.default_user_id)
+        ).first()
+        if user and user.ai_insight:
+            return AiInsightResponse(**user.ai_insight)
+        return AiInsightResponse(
+            insightText="Record your first dream to unlock personalized AI insights about your subconscious patterns.",
+            symbols=[]
+        )
+
+    def generate_and_save_ai_insight(self) -> None:
+        """Heavy background task: calls LLM and persists result into users.ai_insight."""
+        import logging
+        logger = logging.getLogger(__name__)
+        try:
+            recent_dreams = list(
+                self.db.scalars(
+                    select(Dream)
+                    .where(Dream.user_id == self.settings.default_user_id)
+                    .where(Dream.transcript != "")
+                    .order_by(Dream.created_at.desc())
+                    .limit(10)
+                ).all()
+            )
+            if not recent_dreams:
+                return
+
+            summary_lines = []
+            for d in recent_dreams:
+                date_str = d.created_at.strftime("%Y-%m-%d")
+                tags_str = ", ".join(d.tags_json) if d.tags_json else "none"
+                mood_str = d.mood or "neutral"
+                summary_lines.append(
+                    f"- Date: {date_str} | Mood: {mood_str} | Tags: {tags_str} | Transcript: {d.transcript[:200]}..."
+                )
+
+            recent_dreams_summary = "\n".join(summary_lines)
+            insight_data = self.ai_service.generate_user_insight(recent_dreams_summary)
+
+            # Persist to the user record
+            user = self.db.scalars(
+                select(User).where(User.id == self.settings.default_user_id)
+            ).first()
+            if user:
+                user.ai_insight = insight_data
+                self.db.add(user)
+                self.db.commit()
+                logger.info("AI insight generated and saved for user %s", self.settings.default_user_id)
+        except Exception:
+            logger.exception("Background AI insight generation failed")
 
     def get_insights_stats(self) -> InsightsStatsResponse:
         all_dreams = list(

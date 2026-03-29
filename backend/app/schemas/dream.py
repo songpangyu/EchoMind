@@ -179,6 +179,16 @@ class HomeStatsResponse(BaseModel):
     lastDream: DreamResponse | None
 
 
+class AISymbol(BaseModel):
+    icon: str
+    text: str
+
+
+class AiInsightResponse(BaseModel):
+    insightText: str
+    symbols: list[AISymbol]
+
+
 class InsightsStatsResponse(BaseModel):
     totalDreams: int
     avgDreamsPerWeek: float

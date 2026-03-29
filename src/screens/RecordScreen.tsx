@@ -70,7 +70,7 @@ const QUICK_TAGS = [
 ];
 
 const WAVE_HEIGHTS = [0.3, 0.7, 1, 0.5, 0.8, 0.4, 0.9, 0.6, 0.3, 0.75, 0.5, 0.85];
-const MOOD_OPTIONS: { emoji: string; label: string; value: DreamMood }[] = [
+export const MOOD_OPTIONS: { emoji: string; label: string; value: DreamMood }[] = [
   { emoji: '😌', label: 'Peaceful', value: 'peaceful' },
   { emoji: '😊', label: 'Happy', value: 'happy' },
   { emoji: '😢', label: 'Sad', value: 'sad' },

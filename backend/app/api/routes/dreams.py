@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -45,11 +45,16 @@ def build_dream_response(dream) -> DreamResponse:
 
 @router.post("", response_model=DreamResponse, status_code=status.HTTP_201_CREATED)
 @router.post("/", response_model=DreamResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
-def create_dream(payload: CreateDreamRequest, db: Session = Depends(get_db)) -> DreamResponse:
+def create_dream(
+    payload: CreateDreamRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+) -> DreamResponse:
     if not payload.transcript.strip():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Transcript cannot be empty.")
     service = DreamService(db)
     dream = service.create_dream(payload)
+    background_tasks.add_task(service.generate_and_save_ai_insight)
     return build_dream_response(dream)
 
 
@@ -90,7 +95,12 @@ def get_dream(dream_id: str, db: Session = Depends(get_db)) -> DreamResponse:
 
 @router.patch("/{dream_id}", response_model=DreamResponse)
 @router.patch("/{dream_id}/", response_model=DreamResponse, include_in_schema=False)
-def update_dream(dream_id: str, payload: UpdateDreamRequest, db: Session = Depends(get_db)) -> DreamResponse:
+def update_dream(
+    dream_id: str,
+    payload: UpdateDreamRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+) -> DreamResponse:
     service = DreamService(db)
     try:
         dream = service.get_dream_or_404(dream_id)
@@ -98,17 +108,19 @@ def update_dream(dream_id: str, payload: UpdateDreamRequest, db: Session = Depen
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
     updated = service.update_dream(dream, payload)
+    background_tasks.add_task(service.generate_and_save_ai_insight)
     return build_dream_response(updated)
 
 
 @router.delete("/{dream_id}", response_model=DeleteResponse)
 @router.delete("/{dream_id}/", response_model=DeleteResponse, include_in_schema=False)
-def delete_dream(dream_id: str, db: Session = Depends(get_db)) -> DeleteResponse:
+def delete_dream(dream_id: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)) -> DeleteResponse:
     service = DreamService(db)
     try:
         service.delete_dream(dream_id)
     except DreamNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    background_tasks.add_task(service.generate_and_save_ai_insight)
     return DeleteResponse(deleted=1, ids=[dream_id])
 
 

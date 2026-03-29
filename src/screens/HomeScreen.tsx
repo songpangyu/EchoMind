@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { GlassCard } from '../components/GlassCard';
 import { FloatingParticles } from '../components/FloatingParticles';
@@ -16,6 +16,9 @@ import { colors, spacing, typography, borderRadius } from '../theme';
 import { RootStackParamList } from '../navigation/types';
 import Icon, { IconName } from '../components/Icon';
 import { ScreenWrapper } from '../components/ScreenWrapper';
+import { getHomeStats, getAiInsight, HomeStats, AiInsightResponse } from '../api/dreams';
+import { MOOD_OPTIONS } from './RecordScreen';
+import { ActivityIndicator } from 'react-native';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const getGreeting = (): { text: string; icon: IconName } => {
@@ -29,27 +32,26 @@ const getGreeting = (): { text: string; icon: IconName } => {
 const formatDate = () =>
   new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
 
-// ─── Mock data ─────────────────────────────────────────────────────────────────
-const LAST_DREAM = {
-  id: 'last',
-  title: 'Morning Sun in the Crystal Forest',
-  snippet: 'Walking through a bright forest where morning sunlight dances through fresh green leaves. The air felt incredibly crisp and uplifting...',
-  time: '2h ago',
-  mood: '😊',
-  moodLabel: 'Refreshing',
-  tags: ['Forest', 'Sunlight', 'Fresh'],
-  image: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=600&h=300&fit=crop',
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const MOOD_COLORS: Record<string, string> = {
+  peaceful: '#7ec8a0',
+  happy: '#6dbf9e',
+  sad: '#7da8c8',
+  anxious: '#e07777',
+  angry: '#e07777',
+  scared: '#9b7ec8',
+  neutral: colors.textSecondary,
 };
 
-const MOOD_TREND: { day: string; icon: string; color: string; label: string }[] = [
-  { day: '7', icon: '😌', color: '#7ec8a0', label: 'Peaceful' },
-  { day: '5', icon: '😊', color: '#6dbf9e', label: 'Happy' },
-  { day: '4', icon: '😰', color: '#e07777', label: 'Anxious' },
-  { day: '2', icon: '😌', color: '#7ec8a0', label: 'Peaceful' },
-  { day: '1', icon: '😢', color: '#7da8c8', label: 'Sad' },
-  { day: '28', icon: '😊', color: '#6dbf9e', label: 'Happy' },
-  { day: '26', icon: '😴', color: '#9b7ec8', label: 'Calm' },
-];
+const getMoodDetails = (moodKey: string | null) => {
+  const defaultMood = { emoji: '☁️', label: 'Neutral', color: MOOD_COLORS.neutral };
+  if (!moodKey) return defaultMood;
+  const match = MOOD_OPTIONS.find((m: any) => m.id === moodKey || m.value === moodKey) || MOOD_OPTIONS.find((m: any) => m.label.toLowerCase() === moodKey.toLowerCase());
+  if (!match) return defaultMood;
+  return { ...match, color: MOOD_COLORS[match.value] || MOOD_COLORS.neutral };
+};
+
+// ─── Mock data ─────────────────────────────────────────────────────────────────
 
 const DAILY_REFLECTION = [
   "What stayed with you when you woke up?",
@@ -68,15 +70,6 @@ const SUGGESTIONS: { icon: IconName; label: string; text: string }[] = [
   { icon: 'music', label: 'Sounds', text: 'Ambient sounds during sleep may weave themselves into your dreamscape.' },
 ];
 
-const DREAM_STATS = {
-  thisMonth: 14,
-  topMoodIcon: '😌',
-  topMoodLabel: 'Peaceful',
-  topTagIcon: 'leaf' as IconName,
-  topTagLabel: 'Nature',
-  avgPerWeek: 3.5,
-};
-
 // ─── Component ────────────────────────────────────────────────────────────────
 export const HomeScreen: React.FC = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
@@ -84,6 +77,39 @@ export const HomeScreen: React.FC = () => {
   const greeting = useMemo(getGreeting, []);
   const dateStr = useMemo(formatDate, []);
   const reflection = useMemo(() => DAILY_REFLECTION[new Date().getDate() % DAILY_REFLECTION.length], []);
+
+  const [stats, setStats] = React.useState<HomeStats | null>(null);
+  const [insight, setInsight] = React.useState<AiInsightResponse | null>(null);
+  const [loadingStats, setLoadingStats] = React.useState(true);
+  const [loadingInsight, setLoadingInsight] = React.useState(true);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      let active = true;
+      const fetchAll = async () => {
+        try {
+          const statsRes = await getHomeStats();
+          if (active) setStats(statsRes);
+        } catch (e) {
+          console.error(e);
+        } finally {
+          if (active) setLoadingStats(false);
+        }
+
+        try {
+          const insightRes = await getAiInsight();
+          if (active) setInsight(insightRes);
+        } catch (e) {
+          console.error(e);
+        } finally {
+          if (active) setLoadingInsight(false);
+        }
+      };
+      
+      fetchAll();
+      return () => { active = false; };
+    }, [])
+  );
 
   return (
     <ScreenWrapper>
@@ -101,81 +127,117 @@ export const HomeScreen: React.FC = () => {
         </View>
 
         {/* ── Last Dream (tappable) ── */}
-        <TouchableOpacity activeOpacity={0.9} onPress={() => navigation.navigate('DreamDetail', { dreamId: LAST_DREAM.id })}>
-          <GlassCard style={styles.dreamCard}>
-            <View style={styles.dreamImageWrap}>
-              <Image source={{ uri: LAST_DREAM.image }} style={styles.dreamImage} resizeMode="cover" />
-            </View>
-            <View style={styles.dreamBody}>
-              <Text style={styles.dreamTitle}>{LAST_DREAM.title}</Text>
-              <Text style={styles.dreamSnippet} numberOfLines={2}>{LAST_DREAM.snippet}</Text>
-              <View style={styles.dreamMeta}>
-                <Text style={styles.dreamTime}><Icon name="clock" size={12} color={colors.textTertiary} /> {LAST_DREAM.time}</Text>
-                <View style={styles.moodBadge}>
-                  <Text style={{ fontSize: 14 }}>{LAST_DREAM.mood}</Text>
-                  <Text style={styles.moodText}> {LAST_DREAM.moodLabel}</Text>
+        {!loadingStats && stats?.lastDream && (
+          <TouchableOpacity activeOpacity={0.9} onPress={() => navigation.navigate('DreamDetail', { dreamId: stats.lastDream!.id })}>
+            <GlassCard style={styles.dreamCard}>
+              {stats.lastDream.aiImageUrl && (
+                <View style={styles.dreamImageWrap}>
+                  <Image source={{ uri: stats.lastDream.aiImageUrl }} style={styles.dreamImage} resizeMode="cover" />
                 </View>
+              )}
+              <View style={styles.dreamBody}>
+                <Text style={styles.dreamTitle}>{stats.lastDream.title || 'Untitled Dream'}</Text>
+                <Text style={styles.dreamSnippet} numberOfLines={2}>{stats.lastDream.transcript}</Text>
+                <View style={styles.dreamMeta}>
+                  <Text style={styles.dreamTime}>
+                    <Icon name="clock" size={12} color={colors.textTertiary} /> {new Date(stats.lastDream.createdAt).toLocaleDateString()}
+                  </Text>
+                  {stats.lastDream.mood && (
+                    <View style={styles.moodBadge}>
+                      <Text style={{ fontSize: 14 }}>{getMoodDetails(stats.lastDream.mood).emoji}</Text>
+                      <Text style={styles.moodText}> {getMoodDetails(stats.lastDream.mood).label}</Text>
+                    </View>
+                  )}
+                </View>
+                {stats.lastDream.tags && stats.lastDream.tags.length > 0 && (
+                  <View style={styles.tagRow}>
+                    {stats.lastDream.tags.slice(0, 3).map(t => (
+                      <View key={t} style={styles.miniTag}><Text style={styles.miniTagText}>{t}</Text></View>
+                    ))}
+                    <Text style={styles.tapHint}>Tap to view →</Text>
+                  </View>
+                )}
               </View>
-              <View style={styles.tagRow}>
-                {LAST_DREAM.tags.map(t => (
-                  <View key={t} style={styles.miniTag}><Text style={styles.miniTagText}>{t}</Text></View>
-                ))}
-                <Text style={styles.tapHint}>Tap to view →</Text>
-              </View>
-            </View>
-          </GlassCard>
-        </TouchableOpacity>
+            </GlassCard>
+          </TouchableOpacity>
+        )}
+
         {/* ── Dream Stats — 2×2 grid ── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Dream Stats</Text>
           <GlassCard style={styles.statsCard}>
-            <View style={styles.statsRow}>
-              <View style={styles.statItem}>
-                <Text style={styles.statBigValue}>{DREAM_STATS.thisMonth}</Text>
-                <Text style={styles.statLabel}>Dreams this month</Text>
+            {loadingStats ? (
+              <View style={{ padding: spacing.xl, alignItems: 'center' }}>
+                <ActivityIndicator color={colors.mintGreen} />
               </View>
-              <View style={styles.statDividerV} />
-              <View style={styles.statItem}>
-                <Text style={styles.statBigValue}>{DREAM_STATS.avgPerWeek}</Text>
-                <Text style={styles.statLabel}>Avg per week</Text>
-              </View>
-            </View>
-            <View style={styles.statDividerH} />
-            <View style={styles.statsRow}>
-              <View style={styles.statItem}>
-                <Text style={{ fontSize: 24 }}>{DREAM_STATS.topMoodIcon}</Text>
-                <Text style={styles.statMoodValue}>{DREAM_STATS.topMoodLabel}</Text>
-                <Text style={styles.statLabel}>Top mood</Text>
-              </View>
-              <View style={styles.statDividerV} />
-              <View style={styles.statItem}>
-                <Icon name={DREAM_STATS.topTagIcon} size={24} color={colors.mintGreen} />
-                <Text style={styles.statMoodValue}>{DREAM_STATS.topTagLabel}</Text>
-                <Text style={styles.statLabel}>Most common theme</Text>
-              </View>
-            </View>
+            ) : stats ? (
+              <>
+                <View style={styles.statsRow}>
+                  <View style={styles.statItem}>
+                    <Text style={styles.statBigValue}>{stats.thisMonthDreams}</Text>
+                    <Text style={styles.statLabel}>Dreams this month</Text>
+                  </View>
+                  <View style={styles.statDividerV} />
+                  <View style={styles.statItem}>
+                    <Text style={styles.statBigValue}>{stats.weeklyAverage}</Text>
+                    <Text style={styles.statLabel}>Avg per week</Text>
+                  </View>
+                </View>
+                <View style={styles.statDividerH} />
+                <View style={styles.statsRow}>
+                  <View style={styles.statItem}>
+                    <Text style={{ fontSize: 24 }}>{getMoodDetails(stats.topMood).emoji}</Text>
+                    <Text style={styles.statMoodValue}>{getMoodDetails(stats.topMood).label}</Text>
+                    <Text style={styles.statLabel}>Top mood</Text>
+                  </View>
+                  <View style={styles.statDividerV} />
+                  <View style={styles.statItem}>
+                    {stats.topTag ? (
+                      <>
+                        <Icon name="leaf" size={24} color={colors.mintGreen} />
+                        <Text style={styles.statMoodValue}>{stats.topTag}</Text>
+                        <Text style={styles.statLabel}>Most common theme</Text>
+                      </>
+                    ) : (
+                      <>
+                        <Icon name="note" size={24} color={colors.textTertiary} />
+                        <Text style={styles.statMoodValue}>None</Text>
+                        <Text style={styles.statLabel}>Not enough data</Text>
+                      </>
+                    )}
+                  </View>
+                </View>
+              </>
+            ) : null}
           </GlassCard>
         </View>
         {/* ── AI Insight (based on all dreams) ── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>AI Insight for Today</Text>
           <GlassCard>
-            <Text style={styles.aiLabel}>EchoMind AI · Based on all your dreams</Text>
-            <Text style={styles.insightText}>
-              Across your recorded dreams, nature and open spaces appear frequently — suggesting a recurring need for freedom and mental space. Lately, peaceful moods dominate, but the occasional anxious dream hints at unresolved pressure. Today, lean into the calm and give yourself permission to slow down.
-            </Text>
-            <View style={styles.symbolRow}>
-              {[
-                { icon: 'tree' as IconName, text: 'Nature = Freedom' },
-                { icon: 'sparkle' as IconName, text: 'Light = Clarity' },
-                { icon: 'wave' as IconName, text: 'Water = Emotion' },
-              ].map((s, i) => (
-                <View key={i} style={styles.symbolChip}>
-                  <Icon name={s.icon} size={14} color={colors.mintGreen} />
-                  <Text style={styles.symbolText}> {s.text}</Text>
-                </View>
-              ))}
-            </View>
+            {loadingInsight ? (
+              <View style={{ padding: spacing.lg, alignItems: 'center', gap: spacing.md }}>
+                <ActivityIndicator color={colors.mintGreen} />
+                <Text style={{ color: colors.textSecondary }}>Checking your recent dreams...</Text>
+              </View>
+            ) : insight ? (
+              <>
+                <Text style={styles.aiLabel}>EchoMind AI · Based on your recent dreams</Text>
+                <Text style={styles.insightText}>{insight.insightText}</Text>
+                {insight.symbols && insight.symbols.length > 0 && (
+                  <View style={styles.symbolRow}>
+                    {insight.symbols.map((s, i) => (
+                      <View key={i} style={styles.symbolChip}>
+                        <Text style={{ fontSize: 14 }}>{s.icon}</Text>
+                        <Text style={styles.symbolText}> {s.text}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </>
+            ) : (
+              <Text style={{ color: colors.textSecondary }}>No insight available at the moment.</Text>
+            )}
           </GlassCard>
         </View>
 
@@ -193,23 +255,38 @@ export const HomeScreen: React.FC = () => {
           <Text style={styles.sectionTitle}>Recent Dream Moods</Text>
           <GlassCard>
             <Text style={styles.trendSubtitle}>Last 7 recorded dreams</Text>
-            <View style={styles.trendRow}>
-              {MOOD_TREND.map((m, i) => (
-                <View key={i} style={styles.trendItem}>
-                  <Text style={{ fontSize: 18 }}>{m.icon}</Text>
-                  <View style={[styles.trendBar, { backgroundColor: m.color }]} />
-                  <Text style={styles.trendDay}>{m.day}</Text>
+            {loadingStats ? (
+              <ActivityIndicator color={colors.mintGreen} />
+            ) : stats?.recentMoodTrend && stats.recentMoodTrend.length > 0 ? (
+              <>
+                <View style={styles.trendRow}>
+                  {stats.recentMoodTrend.map((m, i) => {
+                    const dt = new Date(m.date);
+                    const details = getMoodDetails(m.mood);
+                    return (
+                      <View key={i} style={styles.trendItem}>
+                        <Text style={{ fontSize: 18 }}>{details.emoji}</Text>
+                        <View style={[styles.trendBar, { backgroundColor: details.color }]} />
+                        <Text style={styles.trendDay}>{dt.getDate()}</Text>
+                      </View>
+                    );
+                  })}
                 </View>
-              ))}
-            </View>
-            <View style={styles.trendLegend}>
-              {[...new Map(MOOD_TREND.map(m => [m.label, m])).values()].map((m, i) => (
-                <View key={i} style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: m.color }]} />
-                  <Text style={styles.legendText}>{m.label}</Text>
+                <View style={styles.trendLegend}>
+                  {[...new Map(stats.recentMoodTrend.map(m => {
+                    const details = getMoodDetails(m.mood);
+                    return [details.label, details];
+                  })).values()].map((m, i) => (
+                    <View key={i} style={styles.legendItem}>
+                      <View style={[styles.legendDot, { backgroundColor: m.color }]} />
+                      <Text style={styles.legendText}>{m.label}</Text>
+                    </View>
+                  ))}
                 </View>
-              ))}
-            </View>
+              </>
+            ) : (
+              <Text style={{ color: colors.textSecondary }}>Record more dreams to see your mood trend!</Text>
+            )}
           </GlassCard>
         </View>
 

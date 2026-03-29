@@ -134,6 +134,37 @@ class AIService:
         content = response_data["choices"][0]["message"]["content"]
         return json.loads(content)
 
+    def generate_user_insight(self, recent_dreams_summary: str) -> dict:
+        if not self.settings.ai_text_enabled:
+            raise AIServiceNotConfiguredError("AI text service is not configured.")
+        
+        prompt = (
+            "You are an expert dream analyst. Analyze the following summary of the user's recent dreams and provide a single cohesive insight.\n\n"
+            "Return ONLY a pure JSON object with the following structure:\n"
+            "  - 'insightText': A paragraph (2-3 sentences) analyzing their recent patterns, emotions, and overarching themes. Give them gentle advice.\n"
+            "  - 'symbols': An array of up to 3 major symbols identified from these dreams. Each item must have:\n"
+            "      - 'icon': a single emoji representing the symbol.\n"
+            "      - 'text': a short phrase like 'Nature = Freedom' or 'Water = Emotion'.\n\n"
+            "Ensure the output is strictly valid JSON."
+        )
+        
+        response_data = self._post_json(
+            base_url=self.settings.ai_text_base_url,
+            api_key=self.settings.ai_text_api_key,
+            path="/chat/completions",
+            payload={
+                "model": self.settings.ai_text_model,
+                "messages": [
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": f"User's recent dreams summary:\n{recent_dreams_summary}"},
+                ],
+                "temperature": 0.6,
+                "response_format": {"type": "json_object"},
+            },
+        )
+        content = response_data["choices"][0]["message"]["content"]
+        return json.loads(content)
+
     def generate_image(self, *, dream, payload: GenerateDreamImageRequest) -> GeneratedImage:
         if not self.settings.ai_image_enabled:
             raise AIServiceNotConfiguredError("AI image service is not configured.")

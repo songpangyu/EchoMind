@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.schemas.dream import HomeStatsResponse, InsightsStatsResponse
+from app.schemas.dream import HomeStatsResponse, InsightsStatsResponse, AiInsightResponse
 from app.services.dream_service import DreamService
 
 
@@ -21,3 +21,10 @@ def get_home_stats(db: Session = Depends(get_db)) -> HomeStatsResponse:
 def get_insights_stats(db: Session = Depends(get_db)) -> InsightsStatsResponse:
     service = DreamService(db)
     return service.get_insights_stats()
+
+
+@router.get("/ai-insight", response_model=AiInsightResponse)
+@router.get("/ai-insight/", response_model=AiInsightResponse, include_in_schema=False)
+def get_ai_insight(db: Session = Depends(get_db)) -> AiInsightResponse:
+    service = DreamService(db)
+    return service.get_ai_insight()
