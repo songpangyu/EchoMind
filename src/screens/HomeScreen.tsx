@@ -36,6 +36,7 @@ const formatDate = () =>
 const MOOD_COLORS: Record<string, string> = {
   peaceful: '#7ec8a0',
   happy: '#6dbf9e',
+  calm: '#7ec8c8',
   sad: '#7da8c8',
   anxious: '#e07777',
   angry: '#e07777',
@@ -260,13 +261,16 @@ export const HomeScreen: React.FC = () => {
             ) : stats?.recentMoodTrend && stats.recentMoodTrend.length > 0 ? (
               <>
                 <View style={styles.trendRow}>
-                  {stats.recentMoodTrend.map((m, i) => {
+                {stats.recentMoodTrend.map((m, i) => {
                     const dt = new Date(m.date);
                     const details = getMoodDetails(m.mood);
+                    // Vary bar height: oldest = 18px, newest = 52px
+                    const total = stats.recentMoodTrend.length;
+                    const barHeight = 18 + Math.round((i / Math.max(total - 1, 1)) * 34);
                     return (
                       <View key={i} style={styles.trendItem}>
                         <Text style={{ fontSize: 18 }}>{details.emoji}</Text>
-                        <View style={[styles.trendBar, { backgroundColor: details.color }]} />
+                        <View style={[styles.trendBar, { backgroundColor: details.color, height: barHeight }]} />
                         <Text style={styles.trendDay}>{dt.getDate()}</Text>
                       </View>
                     );

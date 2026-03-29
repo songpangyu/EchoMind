@@ -24,14 +24,21 @@ from app.services.ai_service import AIService, GeneratedImage
 
 
 class DreamService:
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: Session, user_id: str | None = None) -> None:
         self.db = db
         self.settings = get_settings()
         self.ai_service = AIService()
+        # user_id can be passed directly (multi-user) or fall back to default (legacy)
+        self._user_id = user_id or self.user_id
+
+    @property
+    def user_id(self) -> str:
+        return self._user_id
+
 
     def create_dream(self, payload: CreateDreamRequest) -> Dream:
         dream = Dream(
-            user_id=self.settings.default_user_id,
+            user_id=self.user_id,
             source_type=payload.sourceType,
             status=payload.status,
             title=payload.title,
@@ -55,8 +62,14 @@ class DreamService:
         query: str | None,
         is_favorited: bool | None = None,
     ) -> tuple[list[Dream], int]:
-        stmt = select(Dream).where(Dream.user_id == self.settings.default_user_id)
-        count_stmt = select(func.count()).select_from(Dream).where(Dream.user_id == self.settings.default_user_id)
+        stmt = select(Dream).where(
+            Dream.user_id == self.user_id,
+            Dream.status == "completed",  # Never show drafts in journal
+        )
+        count_stmt = select(func.count()).select_from(Dream).where(
+            Dream.user_id == self.user_id,
+            Dream.status == "completed",
+        )
 
         if month and year:
             month_expr = func.month(Dream.created_at) == month
@@ -86,7 +99,7 @@ class DreamService:
 
     def get_dream_or_404(self, dream_id: str) -> Dream:
         dream = self.db.get(Dream, dream_id)
-        if dream is None or dream.user_id != self.settings.default_user_id:
+        if dream is None or dream.user_id != self.user_id:
             raise DreamNotFoundError(dream_id)
         return dream
 
@@ -119,7 +132,7 @@ class DreamService:
     def batch_delete_dreams(self, dream_ids: list[str]) -> int:
         stmt = select(Dream).where(
             Dream.id.in_(dream_ids),
-            Dream.user_id == self.settings.default_user_id,
+            Dream.user_id == self.user_id,
         )
         dreams = list(self.db.scalars(stmt).all())
         for dream in dreams:
@@ -133,7 +146,7 @@ class DreamService:
         all_dreams = list(
             self.db.scalars(
                 select(Dream)
-                .where(Dream.user_id == self.settings.default_user_id)
+                .where(Dream.user_id == self.user_id)
                 .order_by(Dream.created_at.desc())
             ).all()
         )
@@ -164,13 +177,13 @@ class DreamService:
                 all_tags.extend(d.tags_json)
         top_tag = Counter(all_tags).most_common(1)[0][0] if all_tags else None
 
-        # Recent mood trend (last 7 dreams)
+        # Recent mood trend (last 7 dreams, oldest → newest for chart)
         recent_mood_trend = [
             MoodTrend(
                 date=d.created_at.strftime("%Y-%m-%d"),
                 mood=d.mood,
             )
-            for d in all_dreams[:7]
+            for d in reversed(all_dreams[:7])
         ]
 
         # Last dream
@@ -191,7 +204,7 @@ class DreamService:
     def get_ai_insight(self) -> AiInsightResponse:
         """Return the persisted AI insight from the user record (instant DB read)."""
         user = self.db.scalars(
-            select(User).where(User.id == self.settings.default_user_id)
+            select(User).where(User.id == self.user_id)
         ).first()
         if user and user.ai_insight:
             return AiInsightResponse(**user.ai_insight)
@@ -208,7 +221,7 @@ class DreamService:
             recent_dreams = list(
                 self.db.scalars(
                     select(Dream)
-                    .where(Dream.user_id == self.settings.default_user_id)
+                    .where(Dream.user_id == self.user_id)
                     .where(Dream.transcript != "")
                     .order_by(Dream.created_at.desc())
                     .limit(10)
@@ -231,13 +244,13 @@ class DreamService:
 
             # Persist to the user record
             user = self.db.scalars(
-                select(User).where(User.id == self.settings.default_user_id)
+                select(User).where(User.id == self.user_id)
             ).first()
             if user:
                 user.ai_insight = insight_data
                 self.db.add(user)
                 self.db.commit()
-                logger.info("AI insight generated and saved for user %s", self.settings.default_user_id)
+                logger.info("AI insight generated and saved for user %s", self.user_id)
         except Exception:
             logger.exception("Background AI insight generation failed")
 
@@ -245,7 +258,7 @@ class DreamService:
         all_dreams = list(
             self.db.scalars(
                 select(Dream)
-                .where(Dream.user_id == self.settings.default_user_id)
+                .where(Dream.user_id == self.user_id)
                 .order_by(Dream.created_at.desc())
             ).all()
         )

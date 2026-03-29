@@ -10,6 +10,7 @@ import {
   Modal,
   Animated,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -19,7 +20,8 @@ import { FloatingParticles } from '../components/FloatingParticles';
 import { colors, spacing, typography, borderRadius } from '../theme';
 import { RootStackParamList } from '../navigation/types';
 import Icon, { IconName } from '../components/Icon';
-import { listDreams, deleteDream, batchDeleteDreams, type Dream, type DreamMood } from '../api/dreams';
+import { listDreams, deleteDream, batchDeleteDreams, favoriteDream, getOnThisDayLastYear, type Dream, type DreamMood } from '../api/dreams';
+import { sharePost } from '../api/community';
 import { ScreenWrapper } from '../components/ScreenWrapper';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -36,6 +38,7 @@ type DreamEntry = {
   mood: MoodKey;
   isStarred: boolean;
   icon: IconName;
+  aiImageUrl: string | null;
 };
 
 type MoodKey = DreamMood;
@@ -100,6 +103,7 @@ const toDreamEntry = (dream: Dream): DreamEntry => {
     mood: dream.mood || 'calm',
     isStarred: dream.isFavorited,
     icon: getIconForDream(dream),
+    aiImageUrl: dream.aiImageUrl || null,
   };
 };
 
@@ -143,12 +147,11 @@ export const JournalScreen: React.FC = () => {
       try {
         setLoading(true);
         setErrorMessage(null);
-        const response = await listDreams({
-          month: monthYear.month,
-          year: monthYear.year,
-          q: searchText.trim() || undefined,
-          pageSize: 100,
-        });
+        // When searching, drop month/year to search across all records
+        const params = searchText.trim()
+          ? { q: searchText.trim(), pageSize: 100 }
+          : { month: monthYear.month, year: monthYear.year, pageSize: 100 };
+        const response = await listDreams(params);
         if (!active) {
           return;
         }
@@ -209,22 +212,34 @@ export const JournalScreen: React.FC = () => {
   );
 
   // ── Search / filter ──
+  // When searching, backend already returns cross-month results in fetchedDreams
   const filteredDreams = useMemo(() => {
-    return dreamsThisMonth;
-  }, [dreamsThisMonth]);
+    return searchText.trim() ? fetchedDreams : dreamsThisMonth;
+  }, [searchText, fetchedDreams, dreamsThisMonth]);
 
-  // Group filtered dreams by day in desc order
+  // Group filtered dreams by date (full YYYY-MM-DD) in desc order
   const groupedByDay = useMemo(() => {
-    const groups: { day: number; dreams: DreamEntry[] }[] = [];
-    const days = [...new Set(filteredDreams.map(d => d.day))].sort((a, b) => b - a);
-    days.forEach(day => {
-      groups.push({ day, dreams: filteredDreams.filter(d => d.day === day) });
+    const groups: { dateKey: string; day: number; month: number; year: number; dreams: DreamEntry[] }[] = [];
+    const dates = [...new Set(filteredDreams.map(d => d.date))].sort((a, b) => b.localeCompare(a));
+    dates.forEach(dateKey => {
+      const dreams = filteredDreams.filter(d => d.date === dateKey);
+      if (dreams.length > 0) {
+        const d = dreams[0];
+        groups.push({ dateKey, day: d.day, month: d.month, year: d.year, dreams });
+      }
     });
     return groups;
   }, [filteredDreams]);
 
   // Last year on this day
-  const lastYearDream = useMemo<DreamEntry | null>(() => null, []);
+  const [lastYearDream, setLastYearDream] = useState<DreamEntry | null>(null);
+  useEffect(() => {
+    let active = true;
+    getOnThisDayLastYear()
+      .then(dream => { if (active && dream) setLastYearDream(toDreamEntry(dream)); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   // ── Toast ──
   const [toastMsg, setToastMsg] = useState('');
@@ -253,14 +268,27 @@ export const JournalScreen: React.FC = () => {
     });
   };
 
-  const toggleStar = (id: string) => {
+  const toggleStar = async (id: string) => {
     const willStar = !starredIds.has(id);
+    // Optimistic UI update
     setStarredIds(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
     showToast(willStar ? '⭐ Added to favorites' : '✓ Removed from favorites');
+    // Persist to backend
+    try {
+      await favoriteDream(id, willStar);
+    } catch {
+      // Revert on failure
+      setStarredIds(prev => {
+        const next = new Set(prev);
+        if (willStar) next.delete(id); else next.add(id);
+        return next;
+      });
+      showToast('Failed to update favorite');
+    }
   };
 
   const enterMultiSelect = (id: string) => {
@@ -337,10 +365,34 @@ export const JournalScreen: React.FC = () => {
       {
         text: '🌍 Share to Community',
         onPress: () => {
-          navigation.reset({
-            index: 0,
-            routes: [{ name: 'MainTabs', params: { screen: 'Community', params: { shared: true } } } as any],
-          });
+          Alert.alert(
+            'Share to Community',
+            `Share "${dream.title}" with the EchoMind community?`,
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Share',
+                onPress: async () => {
+                  try {
+                    showToast('Sharing...');
+                    await sharePost(dream.id);
+                    showToast('🌍 Shared to community!');
+                    navigation.reset({
+                      index: 0,
+                      routes: [{ name: 'MainTabs', params: { screen: 'Community', params: { shared: true } } } as any],
+                    });
+                  } catch (e: any) {
+                    const msg = e?.message || '';
+                    if (msg.includes('already')) {
+                      showToast('Already shared!');
+                    } else {
+                      showToast('Share failed: ' + (msg || 'Unknown error'));
+                    }
+                  }
+                },
+              },
+            ]
+          );
         },
       },
       { text: 'Cancel', style: 'cancel' },
@@ -402,10 +454,18 @@ export const JournalScreen: React.FC = () => {
             </View>
           )}
 
-          {/* Top: icon + content */}
+          {/* Top: thumbnail (AI image or icon) + content */}
           <View style={styles.cardTop}>
             <View style={styles.cardThumb}>
-              <Icon name={dream.icon} size={28} color={colors.mintGreen} />
+              {dream.aiImageUrl ? (
+                <Image
+                  source={{ uri: dream.aiImageUrl }}
+                  style={styles.cardThumbImg}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Icon name={dream.icon} size={28} color={colors.mintGreen} />
+              )}
             </View>
             <View style={{ flex: 1 }}>
               <View style={styles.titleRow}>
@@ -779,18 +839,23 @@ export const JournalScreen: React.FC = () => {
               </GlassCard>
             ) : (
               <>
-                {/* Month header */}
-                {!searchText && (
+                {/* Month / search header */}
+                {!searchText ? (
                   <View style={styles.listMonthHeader}>
                     <Text style={styles.listMonthText}>{monthLabel}</Text>
                     <Text style={styles.listMonthCount}>{dreamsThisMonth.length} dreams</Text>
                   </View>
+                ) : (
+                  <View style={styles.listMonthHeader}>
+                    <Text style={styles.listMonthText}>Search Results</Text>
+                    <Text style={styles.listMonthCount}>{filteredDreams.length} dream{filteredDreams.length !== 1 ? 's' : ''}</Text>
+                  </View>
                 )}
-                {groupedByDay.map(({ day, dreams }) => {
-                  const dateKey = `${monthYear.year}-${String(monthYear.month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                {groupedByDay.map(({ dateKey, day, month, year, dreams }) => {
                   const hasMultiple = dreams.length > 1;
                   const isExpanded = expandedDates.has(dateKey);
                   const displayDreams = hasMultiple && !isExpanded ? dreams.slice(0, 1) : dreams;
+                  const groupMonthName = new Date(year, month - 1, 1).toLocaleDateString('en-US', { month: 'short' });
 
                   return (
                     <View key={dateKey}>
@@ -801,7 +866,7 @@ export const JournalScreen: React.FC = () => {
                         activeOpacity={hasMultiple ? 0.7 : 1}
                       >
                         <View style={styles.dateHeaderDot} />
-                        <Text style={styles.dateHeaderText}>Dreams on {monthLabel.split(' ')[0].slice(0, 3)} {day}</Text>
+                        <Text style={styles.dateHeaderText}>Dreams on {groupMonthName} {day}{searchText ? `, ${year}` : ''}</Text>
                         {hasMultiple && (
                           <View style={styles.dateCountBadge}>
                             <Text style={styles.dateCountText}>{dreams.length}</Text>
@@ -1102,6 +1167,9 @@ const styles = StyleSheet.create({
     width: 64, height: 64, borderRadius: borderRadius.md,
     backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: 'rgba(181,217,168,0.1)',
+  },
+  cardThumbImg: {
+    width: '100%', height: '100%', borderRadius: borderRadius.md,
   },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: 2, flexWrap: 'wrap' },
   dreamTitle: { ...typography.caption, color: colors.textPrimary, fontWeight: '700', fontSize: 15, flex: 1 },

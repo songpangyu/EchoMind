@@ -1,0 +1,6 @@
+module Pods_EchoMind_EchoMindTests {
+  umbrella header "Pods-EchoMind-EchoMindTests-umbrella.h"
+
+  export *
+  module * { export * }
+}

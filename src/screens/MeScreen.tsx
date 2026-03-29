@@ -6,6 +6,8 @@ import {
     ScrollView,
     TouchableOpacity,
     Dimensions,
+    Alert,
+    Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -16,6 +18,7 @@ import { FloatingParticles } from '../components/FloatingParticles';
 import { colors, spacing, typography, borderRadius } from '../theme';
 import Icon, { IconName } from '../components/Icon';
 import { ScreenWrapper } from '../components/ScreenWrapper';
+import { useAuth } from '../contexts/AuthContext';
 
 const { width } = Dimensions.get('window');
 
@@ -59,10 +62,18 @@ const MENU_ITEMS: { icon: IconName; label: string; route: keyof RootStackParamLi
 export const MeScreen: React.FC = () => {
     const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
     const insets = useSafeAreaInsets();
+    const { user, logout } = useAuth();
     const [tab, setTab] = useState<'profile' | 'insights'>('profile');
     const [period, setPeriod] = useState<'week' | 'month'>('week');
     const maxDreams = Math.max(...WEEKLY_DATA.map(d => d.dreams));
     const maxMonthly = Math.max(...MONTHLY_DREAMS);
+
+    const handleLogout = async () => {
+        Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Sign Out', style: 'destructive', onPress: () => logout() },
+        ]);
+    };
 
     return (
         <ScreenWrapper>
@@ -73,31 +84,34 @@ export const MeScreen: React.FC = () => {
                 <View style={[styles.profileHeader, { paddingTop: insets.top + 8 }]}>
                     <TouchableOpacity onPress={() => navigation.navigate('EditProfile')}>
                         <View style={styles.avatarWrapper}>
-                            <Icon name="moon" size={32} color={colors.mintGreen} />
+                            {user?.avatar_url ? (
+                                <Image source={{ uri: user.avatar_url }} style={{ width: '100%', height: '100%', borderRadius: 36 }} />
+                            ) : (
+                                <Text style={styles.avatarInitial}>
+                                    {user?.display_name?.charAt(0)?.toUpperCase() ?? '?'}
+                                </Text>
+                            )}
                         </View>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => navigation.navigate('EditProfile')}>
-                        <Text style={styles.username}>Dreamer</Text>
+                        <Text style={styles.username}>{user?.display_name ?? 'Dreamer'}</Text>
                     </TouchableOpacity>
-                    <Text style={styles.userSub}>Exploring the dreamscape since 2024</Text>
-                    <View style={styles.interactionsRow}>
-                        {[
-                            { icon: 'like' as IconName, label: 'Likes', unread: 2, iconColor: '#ff6b6b' },
-                            { icon: 'user-plus' as IconName, label: 'New followers', unread: 0, iconColor: '#4a89dc' },
-                            { icon: 'comment-at' as IconName, label: 'Comments', unread: 0, iconColor: '#37bc9b' },
-                        ].map((item, i) => (
-                            <TouchableOpacity key={i} style={styles.interactionItem} activeOpacity={0.7}>
-                                <View style={styles.interactionIconWrap}>
-                                    <Icon name={item.icon} size={28} color={item.iconColor} strokeWidth={2} />
-                                    {item.unread > 0 && (
-                                        <View style={styles.badgeContainer}>
-                                            <Text style={styles.badgeText}>{item.unread}</Text>
-                                        </View>
-                                    )}
-                                </View>
-                                <Text style={styles.interactionLabel}>{item.label}</Text>
-                            </TouchableOpacity>
-                        ))}
+                    <Text style={styles.userSub}>@{user?.username ?? ''}{user?.bio ? `  ·  ${user.bio}` : ''}</Text>
+                    <View style={styles.statsRow}>
+                        <View style={styles.statPill}>
+                            <Text style={styles.statPillValue}>{user?.dreams_count ?? 0}</Text>
+                            <Text style={styles.statPillLabel}>Dreams</Text>
+                        </View>
+                        <View style={styles.statPillDivider} />
+                        <View style={styles.statPill}>
+                            <Text style={styles.statPillValue}>{user?.followers_count ?? 0}</Text>
+                            <Text style={styles.statPillLabel}>Followers</Text>
+                        </View>
+                        <View style={styles.statPillDivider} />
+                        <View style={styles.statPill}>
+                            <Text style={styles.statPillValue}>{user?.following_count ?? 0}</Text>
+                            <Text style={styles.statPillLabel}>Following</Text>
+                        </View>
                     </View>
                 </View>
 
@@ -129,8 +143,9 @@ export const MeScreen: React.FC = () => {
                                 </GlassCard>
                             </TouchableOpacity>
                         ))}
-                        <TouchableOpacity style={styles.logoutBtn}>
-                            <Text style={styles.logoutText}>Log Out</Text>
+                        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+                            <Icon name="logout" size={16} color={colors.warning} style={{ marginRight: 8 }} />
+                            <Text style={styles.logoutText}>Sign Out</Text>
                         </TouchableOpacity>
                     </View>
                 ) : (
@@ -377,7 +392,10 @@ const styles = StyleSheet.create({
         padding: spacing.md,
         borderRadius: borderRadius.md,
         alignItems: 'center',
+        flexDirection: 'row',
+        justifyContent: 'center',
         borderWidth: 1,
+
         borderColor: 'rgba(255,80,80,0.3)',
     },
     logoutText: { ...typography.body, color: '#FF5050', fontWeight: '600' },
@@ -433,4 +451,15 @@ const styles = StyleSheet.create({
         padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center',
     },
     reportBtnText: { ...typography.body, color: colors.deepTeal, fontWeight: '600' },
+    // ── New profile styles ──────────────────────────────────────────────────────
+    avatarInitial: { fontSize: 28, fontWeight: '700', color: colors.mintGreen },
+    statsRow: {
+        flexDirection: 'row', alignItems: 'center', marginTop: spacing.md,
+        backgroundColor: 'rgba(26,47,47,0.6)', borderRadius: borderRadius.md,
+        paddingVertical: spacing.sm, paddingHorizontal: spacing.lg,
+    },
+    statPill: { flex: 1, alignItems: 'center' },
+    statPillValue: { ...typography.h3, color: colors.mintGreen, fontWeight: '700' },
+    statPillLabel: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
+    statPillDivider: { width: 1, height: 32, backgroundColor: 'rgba(255,255,255,0.1)' },
 });

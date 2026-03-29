@@ -10,6 +10,8 @@
 #endif
 #endif
 
+#import "AsyncStorageSpec/AsyncStorageSpec.h"
+#import "AsyncStorageSpecJSI.h"
 #import "FBReactNativeSpec/FBReactNativeSpec.h"
 #import "FBReactNativeSpecJSI.h"
 #import "RCTModulesConformingToProtocolsProvider.h"

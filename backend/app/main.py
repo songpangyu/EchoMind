@@ -6,6 +6,8 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 from app.api.routes.ai import router as ai_router
+from app.api.routes.auth import router as auth_router
+from app.api.routes.community import router as community_router
 from app.api.routes.dreams import router as dreams_router
 from app.api.routes.stats import router as stats_router
 from app.core.config import get_settings
@@ -75,6 +77,8 @@ def health() -> HealthResponse:
     )
 
 
+app.include_router(auth_router, prefix=settings.app_base_path)
 app.include_router(dreams_router, prefix=settings.app_base_path)
 app.include_router(ai_router, prefix=settings.app_base_path)
 app.include_router(stats_router, prefix=settings.app_base_path)
+app.include_router(community_router, prefix=settings.app_base_path)

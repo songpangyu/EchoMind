@@ -187,3 +187,25 @@ export const getHomeStats = () =>
 
 export const getInsightsStats = () =>
   apiRequest<InsightsStats>('/stats/insights');
+
+/** Toggle isFavorited for a dream */
+export const favoriteDream = (dreamId: string, isFavorited: boolean) =>
+  apiRequest<Dream>(`/dreams/${dreamId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ isFavorited }),
+  });
+
+/** Get a dream recorded on this same day last year (returns first match or null) */
+export const getOnThisDayLastYear = async (): Promise<Dream | null> => {
+  const now = new Date();
+  const lastYear = now.getFullYear() - 1;
+  const res = await apiRequest<DreamListResponse>('/dreams', {
+    query: {
+      page: 1,
+      page_size: 1,
+      month: now.getMonth() + 1,
+      year: lastYear,
+    },
+  });
+  return res.items.length > 0 ? res.items[0] : null;
+};

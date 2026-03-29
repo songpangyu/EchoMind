@@ -1,7 +1,9 @@
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.deps import get_current_user
+from app.models.user import User
 from app.schemas.dream import (
     AIAutofillResponse,
     BatchDeleteRequest,
@@ -49,10 +51,11 @@ def create_dream(
     payload: CreateDreamRequest,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> DreamResponse:
     if not payload.transcript.strip():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Transcript cannot be empty.")
-    service = DreamService(db)
+    service = DreamService(db, user_id=current_user.id)
     dream = service.create_dream(payload)
     background_tasks.add_task(service.generate_and_save_ai_insight)
     return build_dream_response(dream)
@@ -68,8 +71,9 @@ def list_dreams(
     q: str | None = Query(default=None, min_length=1),
     is_favorited: bool | None = Query(default=None),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> DreamListResponse:
-    service = DreamService(db)
+    service = DreamService(db, user_id=current_user.id)
     items, total = service.list_dreams(
         page=page, page_size=page_size, month=month, year=year,
         query=q, is_favorited=is_favorited,
@@ -84,8 +88,8 @@ def list_dreams(
 
 @router.get("/{dream_id}", response_model=DreamResponse)
 @router.get("/{dream_id}/", response_model=DreamResponse, include_in_schema=False)
-def get_dream(dream_id: str, db: Session = Depends(get_db)) -> DreamResponse:
-    service = DreamService(db)
+def get_dream(dream_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> DreamResponse:
+    service = DreamService(db, user_id=current_user.id)
     try:
         dream = service.get_dream_or_404(dream_id)
     except DreamNotFoundError as exc:
@@ -100,8 +104,9 @@ def update_dream(
     payload: UpdateDreamRequest,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> DreamResponse:
-    service = DreamService(db)
+    service = DreamService(db, user_id=current_user.id)
     try:
         dream = service.get_dream_or_404(dream_id)
     except DreamNotFoundError as exc:
@@ -114,8 +119,8 @@ def update_dream(
 
 @router.delete("/{dream_id}", response_model=DeleteResponse)
 @router.delete("/{dream_id}/", response_model=DeleteResponse, include_in_schema=False)
-def delete_dream(dream_id: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)) -> DeleteResponse:
-    service = DreamService(db)
+def delete_dream(dream_id: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> DeleteResponse:
+    service = DreamService(db, user_id=current_user.id)
     try:
         service.delete_dream(dream_id)
     except DreamNotFoundError as exc:
@@ -126,16 +131,16 @@ def delete_dream(dream_id: str, background_tasks: BackgroundTasks, db: Session =
 
 @router.post("/batch-delete", response_model=BatchDeleteResponse)
 @router.post("/batch-delete/", response_model=BatchDeleteResponse, include_in_schema=False)
-def batch_delete_dreams(payload: BatchDeleteRequest, db: Session = Depends(get_db)) -> BatchDeleteResponse:
-    service = DreamService(db)
+def batch_delete_dreams(payload: BatchDeleteRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> BatchDeleteResponse:
+    service = DreamService(db, user_id=current_user.id)
     deleted_count = service.batch_delete_dreams(payload.ids)
     return BatchDeleteResponse(deleted=deleted_count, ids=payload.ids)
 
 
 @router.post("/{dream_id}/ai-autofill", response_model=AIAutofillResponse)
 @router.post("/{dream_id}/ai-autofill/", response_model=AIAutofillResponse, include_in_schema=False)
-def generate_ai_autofill(dream_id: str, db: Session = Depends(get_db)) -> AIAutofillResponse:
-    service = DreamService(db)
+def generate_ai_autofill(dream_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> AIAutofillResponse:
+    service = DreamService(db, user_id=current_user.id)
     try:
         dream = service.get_dream_or_404(dream_id)
     except DreamNotFoundError as exc:
@@ -147,15 +152,9 @@ def generate_ai_autofill(dream_id: str, db: Session = Depends(get_db)) -> AIAuto
     try:
         _dream, result = service.apply_ai_autofill(dream)
     except AIServiceNotConfiguredError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(exc),
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
     except AIServiceRequestError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=str(exc),
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
     return result
 
 
@@ -165,8 +164,9 @@ def generate_ai_image(
     dream_id: str,
     payload: GenerateDreamImageRequest,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> DreamResponse:
-    service = DreamService(db)
+    service = DreamService(db, user_id=current_user.id)
     try:
         dream = service.get_dream_or_404(dream_id)
     except DreamNotFoundError as exc:
@@ -175,15 +175,9 @@ def generate_ai_image(
     try:
         updated = service.apply_ai_image(dream, payload)
     except AIServiceNotConfiguredError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(exc),
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
     except AIServiceRequestError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=str(exc),
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
     return build_dream_response(updated)
 
 
@@ -191,8 +185,9 @@ def generate_ai_image(
 def analyze_dream(
     dream_id: str,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> DreamResponse:
-    service = DreamService(db)
+    service = DreamService(db, user_id=current_user.id)
     try:
         dream = service.get_dream_or_404(dream_id)
     except DreamNotFoundError as exc:
@@ -201,13 +196,7 @@ def analyze_dream(
     try:
         updated = service.apply_ai_analysis(dream)
     except AIServiceNotConfiguredError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(exc),
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
     except AIServiceRequestError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=str(exc),
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
     return build_dream_response(updated)

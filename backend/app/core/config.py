@@ -33,6 +33,14 @@ class Settings(BaseSettings):
 
     cors_origins: str = Field(default="*", alias="CORS_ORIGINS")
 
+    jwt_secret: str = Field(default="change-me-in-production-please", alias="JWT_SECRET")
+    jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
+    access_token_expire_days: int = Field(default=7, alias="ACCESS_TOKEN_EXPIRE_DAYS")
+    refresh_token_expire_days: int = Field(default=30, alias="REFRESH_TOKEN_EXPIRE_DAYS")
+
+    apple_bundle_id: str = Field(default="org.reactjs.native.example.EchoMind", alias="APPLE_BUNDLE_ID")
+
+
     model_config = SettingsConfigDict(
         env_file=".env.backend",
         env_file_encoding="utf-8",
