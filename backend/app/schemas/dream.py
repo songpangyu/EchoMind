@@ -87,6 +87,7 @@ class DreamResponse(BaseModel):
     aiImageStyle: str | None
     aiAutofillStatus: JobStatus
     aiImageStatus: JobStatus
+    analysis_json: dict | None = Field(default=None, alias="analysis")
     isFavorited: bool
     createdAt: datetime
     updatedAt: datetime
@@ -107,6 +108,20 @@ class AIAutofillResponse(BaseModel):
     configured: bool
 
 
+class DreamAnalysisPerspective(BaseModel):
+    summary: str
+    insights: list[str]
+    suggestion: str
+
+
+class DreamAnalysisResponse(BaseModel):
+    life: DreamAnalysisPerspective
+    work: DreamAnalysisPerspective
+    relationship: DreamAnalysisPerspective
+    emotion: DreamAnalysisPerspective
+    spiritual: DreamAnalysisPerspective
+
+
 class AnalyzeDreamTextRequest(BaseModel):
     transcript: str = Field(min_length=1)
 
@@ -121,6 +136,58 @@ class AnalyzeDreamTextRequest(BaseModel):
 
 class GenerateDreamImageRequest(BaseModel):
     style: ImageStyle
+
+
+class DeleteResponse(BaseModel):
+    deleted: int
+    ids: list[str]
+
+
+class BatchDeleteRequest(BaseModel):
+    ids: list[str] = Field(min_length=1, max_length=50)
+
+
+class BatchDeleteResponse(BaseModel):
+    deleted: int
+    ids: list[str]
+
+
+class MoodDistribution(BaseModel):
+    mood: str
+    count: int
+    percentage: float
+
+
+class TagFrequency(BaseModel):
+    tag: str
+    count: int
+
+
+class MoodTrend(BaseModel):
+    date: str
+    mood: str | None
+
+
+class HomeStatsResponse(BaseModel):
+    totalDreams: int
+    thisMonthDreams: int
+    weeklyAverage: float
+    currentStreak: int
+    topMood: str | None
+    topTag: str | None
+    recentMoodTrend: list[MoodTrend]
+    lastDream: DreamResponse | None
+
+
+class InsightsStatsResponse(BaseModel):
+    totalDreams: int
+    avgDreamsPerWeek: float
+    currentStreak: int
+    longestStreak: int
+    moodDistribution: list[MoodDistribution]
+    topTags: list[TagFrequency]
+    weeklyFrequency: list[dict]
+    monthlyFrequency: list[dict]
 
 
 class HealthResponse(BaseModel):

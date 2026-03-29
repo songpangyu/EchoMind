@@ -1,31 +1,102 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { colors, spacing, typography, borderRadius } from '../theme';
 import Icon from '../components/Icon';
 import { GlassCard } from '../components/GlassCard';
 import { FloatingParticles } from '../components/FloatingParticles';
 import { ScreenWrapper } from '../components/ScreenWrapper';
+import { listDreams, Dream, updateDream } from '../api/dreams';
 
-const SAVED_POSTS = [
-    {
-        id: '1', time: '07:15 AM',
-        title: 'Forest Lake Under',
-        dream: 'Walking into a forest bathed in moonlight, with towering trees. After passing through the woods, I found a calm lake reflecting stars...',
-        mood: 'peaceful', tags: ['Forest', 'Lake'],
-    },
-    {
-        id: '2', time: 'Yesterday',
-        title: 'City in the Clouds',
-        dream: 'I stepped out of my window onto a solid cloud. There was a whole bustling city up there, made of crystallized air and light.',
-        mood: 'peaceful', tags: ['Flying', 'City'],
+const MOOD_EMOJI: Record<string, string> = {
+    happy: '😊',
+    peaceful: '😌',
+    anxious: '😰',
+    sad: '😢',
+    calm: '😴',
+};
+
+const MOOD_ICONS: Record<string, string> = {
+    happy: 'heart',
+    peaceful: 'tree',
+    anxious: 'fire',
+    sad: 'rain',
+    calm: 'moon',
+};
+
+const formatTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) {
+        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    } else if (diffDays === 1) {
+        return 'Yesterday';
+    } else if (diffDays < 7) {
+        return `${diffDays} days ago`;
+    } else {
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     }
-];
+};
 
 export const SavedDreamsScreen: React.FC = () => {
     const insets = useSafeAreaInsets();
-    const navigation = useNavigation();
+    const navigation = useNavigation<any>();
+    const [dreams, setDreams] = useState<Dream[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [page, setPage] = useState(1);
+    const [total, setTotal] = useState(0);
+
+    const fetchSavedDreams = useCallback(async (pageNum: number = 1, isRefresh = false) => {
+        try {
+            if (isRefresh) setRefreshing(true);
+            else if (pageNum === 1) setLoading(true);
+
+            const response = await listDreams({
+                page: pageNum,
+                pageSize: 20,
+                isFavorited: true,
+            });
+            if (pageNum === 1) {
+                setDreams(response.items);
+            } else {
+                setDreams(prev => [...prev, ...response.items]);
+            }
+            setTotal(response.total);
+            setPage(pageNum);
+        } catch (error) {
+            console.error('Failed to fetch saved dreams:', error);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    }, []);
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchSavedDreams(1);
+        }, [fetchSavedDreams])
+    );
+
+    const onRefresh = () => fetchSavedDreams(1, true);
+
+    const handleUnfavorite = async (dreamId: string) => {
+        try {
+            await updateDream(dreamId, { isFavorited: false });
+            setDreams(prev => prev.filter(d => d.id !== dreamId));
+            setTotal(prev => prev - 1);
+        } catch (error) {
+            console.error('Failed to unfavorite dream:', error);
+        }
+    };
+
+    const handleDreamPress = (dreamId: string) => {
+        navigation.navigate('DreamDetail', { dreamId });
+    };
 
     return (
         <ScreenWrapper>
@@ -35,57 +106,102 @@ export const SavedDreamsScreen: React.FC = () => {
                 <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
                     <Text style={styles.backBtnText}>‹</Text>
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Stared Dreams</Text>
-                <View style={{ width: 44 }} />
+                <Text style={styles.headerTitle}>Starred Dreams</Text>
+                <View style={styles.countBadge}>
+                    <Text style={styles.countText}>{total}</Text>
+                </View>
             </View>
 
-            <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-                {SAVED_POSTS.map(post => (
-                    <GlassCard key={post.id} style={styles.postCard}>
-                        <View style={styles.cardMainRow}>
-                            {/* Left Icon box */}
-                            <View style={styles.iconBox}>
-                                <Icon name="tree" size={32} color={colors.mintGreen} />
-                            </View>
+            {loading ? (
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={colors.mintGreen} />
+                    <Text style={styles.loadingText}>Loading saved dreams...</Text>
+                </View>
+            ) : dreams.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                    <Icon name="heart" size={48} color={colors.textTertiary} />
+                    <Text style={styles.emptyTitle}>No Starred Dreams</Text>
+                    <Text style={styles.emptyText}>
+                        Tap the star icon on any dream to save it here for easy access.
+                    </Text>
+                </View>
+            ) : (
+                <ScrollView
+                    style={styles.scrollView}
+                    showsVerticalScrollIndicator={false}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            tintColor={colors.mintGreen}
+                        />
+                    }
+                >
+                    {dreams.map(dream => (
+                        <TouchableOpacity
+                            key={dream.id}
+                            activeOpacity={0.8}
+                            onPress={() => handleDreamPress(dream.id)}
+                        >
+                            <GlassCard style={styles.postCard}>
+                                <View style={styles.cardMainRow}>
+                                    <View style={styles.iconBox}>
+                                        <Icon
+                                            name={(MOOD_ICONS[dream.mood || ''] || 'moon') as any}
+                                            size={32}
+                                            color={colors.mintGreen}
+                                        />
+                                    </View>
 
-                            {/* Right Content */}
-                            <View style={styles.rightContent}>
-                                <View style={styles.titleRow}>
-                                    <Text style={styles.postTitle} numberOfLines={1}>{post.title}</Text>
-                                    <View style={styles.moodPill}>
-                                        <Text style={styles.moodEmoji}>
-                                            {post.mood === 'happy' ? '😊' : post.mood === 'peaceful' ? '😌' : post.mood === 'anxious' ? '😰' : post.mood === 'sad' ? '😢' : '😴'}
-                                        </Text>
-                                        <Text style={styles.moodLabel}>
-                                            {post.mood.charAt(0).toUpperCase() + post.mood.slice(1)}
+                                    <View style={styles.rightContent}>
+                                        <View style={styles.titleRow}>
+                                            <Text style={styles.postTitle} numberOfLines={1}>
+                                                {dream.title || 'Untitled Dream'}
+                                            </Text>
+                                            {dream.mood && (
+                                                <View style={styles.moodPill}>
+                                                    <Text style={styles.moodEmoji}>
+                                                        {MOOD_EMOJI[dream.mood] || '😴'}
+                                                    </Text>
+                                                    <Text style={styles.moodLabel}>
+                                                        {dream.mood.charAt(0).toUpperCase() + dream.mood.slice(1)}
+                                                    </Text>
+                                                </View>
+                                            )}
+                                        </View>
+
+                                        <Text style={styles.postTime}>{formatTime(dream.createdAt)}</Text>
+
+                                        <Text style={styles.dreamText} numberOfLines={3}>
+                                            {dream.transcript}
                                         </Text>
                                     </View>
                                 </View>
 
-                                <Text style={styles.postTime}>{post.time}</Text>
+                                <View style={styles.divider} />
 
-                                <Text style={styles.dreamText} numberOfLines={3}>{post.dream}</Text>
-                            </View>
-                        </View>
-
-                        <View style={styles.divider} />
-
-                        <View style={styles.cardFooter}>
-                            <View style={styles.tagRow}>
-                                {post.tags.map((tag, i) => (
-                                    <View key={i} style={styles.tag}>
-                                        <Text style={styles.tagText}>{tag}</Text>
+                                <View style={styles.cardFooter}>
+                                    <View style={styles.tagRow}>
+                                        {(dream.tags || []).slice(0, 3).map((tag, i) => (
+                                            <View key={i} style={styles.tag}>
+                                                <Text style={styles.tagText}>{tag}</Text>
+                                            </View>
+                                        ))}
                                     </View>
-                                ))}
-                            </View>
-                            <TouchableOpacity style={styles.moreBtn}>
-                                <Icon name="more" size={20} color={colors.mintGreen} />
-                            </TouchableOpacity>
-                        </View>
-                    </GlassCard>
-                ))}
-                <View style={{ height: 100 }} />
-            </ScrollView>
+                                    <TouchableOpacity
+                                        style={styles.unfavoriteBtn}
+                                        onPress={() => handleUnfavorite(dream.id)}
+                                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                    >
+                                        <Icon name="heart" size={18} color={colors.error} />
+                                    </TouchableOpacity>
+                                </View>
+                            </GlassCard>
+                        </TouchableOpacity>
+                    ))}
+                    <View style={{ height: 100 }} />
+                </ScrollView>
+            )}
         </View>
         </ScreenWrapper>
     );
@@ -123,9 +239,50 @@ const styles = StyleSheet.create({
         ...typography.h2,
         color: colors.textPrimary,
     },
+    countBadge: {
+        width: 44,
+        height: 30,
+        borderRadius: 15,
+        backgroundColor: 'rgba(181,217,168,0.15)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    countText: {
+        color: colors.mintGreen,
+        fontSize: 14,
+        fontWeight: '700',
+    },
     scrollView: {
         flex: 1,
         paddingHorizontal: spacing.lg,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 16,
+    },
+    loadingText: {
+        color: colors.textTertiary,
+        ...typography.body,
+    },
+    emptyContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: spacing.xl,
+        gap: 12,
+    },
+    emptyTitle: {
+        ...typography.h3,
+        color: colors.textPrimary,
+        marginTop: 8,
+    },
+    emptyText: {
+        ...typography.body,
+        color: colors.textTertiary,
+        textAlign: 'center',
+        lineHeight: 22,
     },
     postCard: {
         padding: spacing.md,
@@ -216,7 +373,7 @@ const styles = StyleSheet.create({
         color: colors.mintGreen,
         ...typography.caption,
     },
-    moreBtn: {
+    unfavoriteBtn: {
         width: 32,
         height: 32,
         borderRadius: 16,

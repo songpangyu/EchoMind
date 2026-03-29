@@ -3,6 +3,20 @@ import { apiRequest } from './client';
 export type DreamMood = 'peaceful' | 'happy' | 'sad' | 'anxious' | 'calm';
 export type DreamSourceType = 'voice' | 'text';
 
+export type DreamAnalysisPerspective = {
+  summary: string;
+  insights: string[];
+  suggestion: string;
+};
+
+export type DreamAnalysisResponse = {
+  life: DreamAnalysisPerspective;
+  work: DreamAnalysisPerspective;
+  relationship: DreamAnalysisPerspective;
+  emotion: DreamAnalysisPerspective;
+  spiritual: DreamAnalysisPerspective;
+};
+
 export type Dream = {
   id: string;
   userId: string;
@@ -18,6 +32,7 @@ export type Dream = {
   aiImageStyle: string | null;
   aiAutofillStatus: 'idle' | 'processing' | 'completed' | 'failed';
   aiImageStatus: 'idle' | 'processing' | 'completed' | 'failed';
+  analysis: DreamAnalysisResponse | null;
   isFavorited: boolean;
   createdAt: string;
   updatedAt: string;
@@ -67,7 +82,7 @@ export const updateDream = (dreamId: string, payload: UpdateDreamPayload) =>
 export const getDream = (dreamId: string) =>
   apiRequest<Dream>(`/dreams/${dreamId}`);
 
-export const listDreams = (params: { page?: number; pageSize?: number; month?: number; year?: number; q?: string }) =>
+export const listDreams = (params: { page?: number; pageSize?: number; month?: number; year?: number; q?: string; isFavorited?: boolean }) =>
   apiRequest<DreamListResponse>('/dreams', {
     query: {
       page: params.page ?? 1,
@@ -75,7 +90,19 @@ export const listDreams = (params: { page?: number; pageSize?: number; month?: n
       month: params.month,
       year: params.year,
       q: params.q,
+      is_favorited: params.isFavorited,
     },
+  });
+
+export const deleteDream = (dreamId: string) =>
+  apiRequest<{ deleted: number; ids: string[] }>(`/dreams/${dreamId}`, {
+    method: 'DELETE',
+  });
+
+export const batchDeleteDreams = (ids: string[]) =>
+  apiRequest<{ deleted: number; ids: string[] }>('/dreams/batch-delete', {
+    method: 'POST',
+    body: JSON.stringify({ ids }),
   });
 
 export const generateDreamAutofill = (dreamId: string) =>
@@ -94,3 +121,54 @@ export const generateDreamImage = (dreamId: string, style: string) =>
     method: 'POST',
     body: JSON.stringify({ style }),
   });
+
+export const analyzeDream = (dreamId: string) =>
+  apiRequest<Dream>(`/dreams/${dreamId}/analyze`, {
+    method: 'POST',
+  });
+
+// ── Stats ─────────────────────────────────────────────
+
+export type MoodTrend = {
+  date: string;
+  mood: string | null;
+};
+
+export type HomeStats = {
+  totalDreams: number;
+  thisMonthDreams: number;
+  weeklyAverage: number;
+  currentStreak: number;
+  topMood: string | null;
+  topTag: string | null;
+  recentMoodTrend: MoodTrend[];
+  lastDream: Dream | null;
+};
+
+export type MoodDistribution = {
+  mood: string;
+  count: number;
+  percentage: number;
+};
+
+export type TagFrequency = {
+  tag: string;
+  count: number;
+};
+
+export type InsightsStats = {
+  totalDreams: number;
+  avgDreamsPerWeek: number;
+  currentStreak: number;
+  longestStreak: number;
+  moodDistribution: MoodDistribution[];
+  topTags: TagFrequency[];
+  weeklyFrequency: { week: string; count: number }[];
+  monthlyFrequency: { month: string; count: number }[];
+};
+
+export const getHomeStats = () =>
+  apiRequest<HomeStats>('/stats/home');
+
+export const getInsightsStats = () =>
+  apiRequest<InsightsStats>('/stats/insights');

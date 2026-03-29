@@ -1,11 +1,23 @@
 import uuid
+from collections import Counter
+from datetime import datetime, timedelta
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.models.dream import Dream
-from app.schemas.dream import CreateDreamRequest, DreamResponse, GenerateDreamImageRequest, UpdateDreamRequest
+from app.schemas.dream import (
+    CreateDreamRequest,
+    DreamResponse,
+    GenerateDreamImageRequest,
+    HomeStatsResponse,
+    InsightsStatsResponse,
+    MoodDistribution,
+    MoodTrend,
+    TagFrequency,
+    UpdateDreamRequest,
+)
 from app.services.ai_service import AIService, GeneratedImage
 
 
@@ -39,6 +51,7 @@ class DreamService:
         month: int | None,
         year: int | None,
         query: str | None,
+        is_favorited: bool | None = None,
     ) -> tuple[list[Dream], int]:
         stmt = select(Dream).where(Dream.user_id == self.settings.default_user_id)
         count_stmt = select(func.count()).select_from(Dream).where(Dream.user_id == self.settings.default_user_id)
@@ -58,6 +71,11 @@ class DreamService:
             )
             stmt = stmt.where(query_filter)
             count_stmt = count_stmt.where(query_filter)
+
+        if is_favorited is not None:
+            fav_filter = Dream.is_favorited == is_favorited
+            stmt = stmt.where(fav_filter)
+            count_stmt = count_stmt.where(fav_filter)
 
         stmt = stmt.order_by(Dream.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
         items = list(self.db.scalars(stmt).all())
@@ -90,6 +108,194 @@ class DreamService:
         self.db.commit()
         self.db.refresh(dream)
         return dream
+
+    def delete_dream(self, dream_id: str) -> None:
+        dream = self.get_dream_or_404(dream_id)
+        self.db.delete(dream)
+        self.db.commit()
+
+    def batch_delete_dreams(self, dream_ids: list[str]) -> int:
+        stmt = select(Dream).where(
+            Dream.id.in_(dream_ids),
+            Dream.user_id == self.settings.default_user_id,
+        )
+        dreams = list(self.db.scalars(stmt).all())
+        for dream in dreams:
+            self.db.delete(dream)
+        self.db.commit()
+        return len(dreams)
+
+    # ── Stats ────────────────────────────────────────────────
+
+    def get_home_stats(self) -> HomeStatsResponse:
+        all_dreams = list(
+            self.db.scalars(
+                select(Dream)
+                .where(Dream.user_id == self.settings.default_user_id)
+                .order_by(Dream.created_at.desc())
+            ).all()
+        )
+        total = len(all_dreams)
+
+        now = datetime.utcnow()
+        this_month_dreams = sum(
+            1 for d in all_dreams
+            if d.created_at.month == now.month and d.created_at.year == now.year
+        )
+
+        # Weekly average (over past 4 weeks)
+        four_weeks_ago = now - timedelta(weeks=4)
+        recent_dreams = [d for d in all_dreams if d.created_at >= four_weeks_ago]
+        weekly_average = round(len(recent_dreams) / 4, 1)
+
+        # Current streak (consecutive days with dreams, ending today/yesterday)
+        current_streak = self._calculate_current_streak(all_dreams)
+
+        # Top mood
+        moods = [d.mood for d in all_dreams if d.mood]
+        top_mood = Counter(moods).most_common(1)[0][0] if moods else None
+
+        # Top tag
+        all_tags: list[str] = []
+        for d in all_dreams:
+            if d.tags_json:
+                all_tags.extend(d.tags_json)
+        top_tag = Counter(all_tags).most_common(1)[0][0] if all_tags else None
+
+        # Recent mood trend (last 7 dreams)
+        recent_mood_trend = [
+            MoodTrend(
+                date=d.created_at.strftime("%Y-%m-%d"),
+                mood=d.mood,
+            )
+            for d in all_dreams[:7]
+        ]
+
+        # Last dream
+        from app.api.routes.dreams import build_dream_response
+        last_dream = build_dream_response(all_dreams[0]) if all_dreams else None
+
+        return HomeStatsResponse(
+            totalDreams=total,
+            thisMonthDreams=this_month_dreams,
+            weeklyAverage=weekly_average,
+            currentStreak=current_streak,
+            topMood=top_mood,
+            topTag=top_tag,
+            recentMoodTrend=recent_mood_trend,
+            lastDream=last_dream,
+        )
+
+    def get_insights_stats(self) -> InsightsStatsResponse:
+        all_dreams = list(
+            self.db.scalars(
+                select(Dream)
+                .where(Dream.user_id == self.settings.default_user_id)
+                .order_by(Dream.created_at.desc())
+            ).all()
+        )
+        total = len(all_dreams)
+
+        # Average dreams per week
+        if total > 0 and all_dreams:
+            now = datetime.utcnow()
+            first_dream_date = all_dreams[-1].created_at
+            weeks_span = max((now - first_dream_date).days / 7, 1)
+            avg_per_week = round(total / weeks_span, 1)
+        else:
+            avg_per_week = 0.0
+
+        # Streaks
+        current_streak = self._calculate_current_streak(all_dreams)
+        longest_streak = self._calculate_longest_streak(all_dreams)
+
+        # Mood distribution
+        moods = [d.mood for d in all_dreams if d.mood]
+        mood_counts = Counter(moods)
+        mood_total = len(moods)
+        mood_distribution = [
+            MoodDistribution(
+                mood=mood,
+                count=count,
+                percentage=round(count / mood_total * 100, 1) if mood_total > 0 else 0,
+            )
+            for mood, count in mood_counts.most_common()
+        ]
+
+        # Top tags
+        all_tags: list[str] = []
+        for d in all_dreams:
+            if d.tags_json:
+                all_tags.extend(d.tags_json)
+        tag_counts = Counter(all_tags)
+        top_tags = [
+            TagFrequency(tag=tag, count=count)
+            for tag, count in tag_counts.most_common(10)
+        ]
+
+        # Weekly frequency (last 12 weeks)
+        now = datetime.utcnow()
+        weekly_frequency = []
+        for i in range(11, -1, -1):
+            week_start = now - timedelta(weeks=i + 1)
+            week_end = now - timedelta(weeks=i)
+            count = sum(1 for d in all_dreams if week_start <= d.created_at < week_end)
+            weekly_frequency.append({
+                "week": (now - timedelta(weeks=i)).strftime("%m/%d"),
+                "count": count,
+            })
+
+        # Monthly frequency (last 6 months)
+        monthly_frequency = []
+        for i in range(5, -1, -1):
+            month_date = now - timedelta(days=30 * i)
+            m, y = month_date.month, month_date.year
+            count = sum(1 for d in all_dreams if d.created_at.month == m and d.created_at.year == y)
+            monthly_frequency.append({
+                "month": month_date.strftime("%Y-%m"),
+                "count": count,
+            })
+
+        return InsightsStatsResponse(
+            totalDreams=total,
+            avgDreamsPerWeek=avg_per_week,
+            currentStreak=current_streak,
+            longestStreak=longest_streak,
+            moodDistribution=mood_distribution,
+            topTags=top_tags,
+            weeklyFrequency=weekly_frequency,
+            monthlyFrequency=monthly_frequency,
+        )
+
+    def _calculate_current_streak(self, dreams: list[Dream]) -> int:
+        if not dreams:
+            return 0
+        dates = sorted({d.created_at.date() for d in dreams}, reverse=True)
+        today = datetime.utcnow().date()
+        # Start from today or yesterday
+        if dates[0] != today and dates[0] != today - timedelta(days=1):
+            return 0
+        streak = 1
+        for i in range(1, len(dates)):
+            if dates[i - 1] - dates[i] == timedelta(days=1):
+                streak += 1
+            else:
+                break
+        return streak
+
+    def _calculate_longest_streak(self, dreams: list[Dream]) -> int:
+        if not dreams:
+            return 0
+        dates = sorted({d.created_at.date() for d in dreams})
+        longest = 1
+        current = 1
+        for i in range(1, len(dates)):
+            if dates[i] - dates[i - 1] == timedelta(days=1):
+                current += 1
+                longest = max(longest, current)
+            else:
+                current = 1
+        return longest
 
     def apply_ai_autofill(self, dream: Dream) -> tuple[Dream, DreamResponse]:
         dream.ai_autofill_status = "processing"
@@ -149,6 +355,20 @@ class DreamService:
             "image/webp": "webp",
         }
         return mapping.get(mime_type, "jpg")
+
+    def apply_ai_analysis(self, dream: Dream) -> Dream:
+        if dream.analysis_json:
+            return dream
+        
+        try:
+            analysis = self.ai_service.generate_dream_analysis(dream.transcript)
+            dream.analysis_json = analysis
+            self.db.add(dream)
+            self.db.commit()
+            self.db.refresh(dream)
+            return dream
+        except Exception:
+            raise
 
 
 class DreamNotFoundError(Exception):

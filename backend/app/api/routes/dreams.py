@@ -1,10 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.schemas.dream import (
     AIAutofillResponse,
+    BatchDeleteRequest,
+    BatchDeleteResponse,
     CreateDreamRequest,
+    DeleteResponse,
     DreamListResponse,
     DreamResponse,
     GenerateDreamImageRequest,
@@ -33,6 +36,7 @@ def build_dream_response(dream) -> DreamResponse:
         aiImageStyle=dream.ai_image_style,
         aiAutofillStatus=dream.ai_autofill_status,
         aiImageStatus=dream.ai_image_status,
+        analysis=dream.analysis_json,
         isFavorited=dream.is_favorited,
         createdAt=dream.created_at,
         updatedAt=dream.updated_at,
@@ -57,10 +61,14 @@ def list_dreams(
     month: int | None = Query(default=None, ge=1, le=12),
     year: int | None = Query(default=None, ge=2000, le=2100),
     q: str | None = Query(default=None, min_length=1),
+    is_favorited: bool | None = Query(default=None),
     db: Session = Depends(get_db),
 ) -> DreamListResponse:
     service = DreamService(db)
-    items, total = service.list_dreams(page=page, page_size=page_size, month=month, year=year, query=q)
+    items, total = service.list_dreams(
+        page=page, page_size=page_size, month=month, year=year,
+        query=q, is_favorited=is_favorited,
+    )
     return DreamListResponse(
         items=[build_dream_response(item) for item in items],
         page=page,
@@ -91,6 +99,25 @@ def update_dream(dream_id: str, payload: UpdateDreamRequest, db: Session = Depen
 
     updated = service.update_dream(dream, payload)
     return build_dream_response(updated)
+
+
+@router.delete("/{dream_id}", response_model=DeleteResponse)
+@router.delete("/{dream_id}/", response_model=DeleteResponse, include_in_schema=False)
+def delete_dream(dream_id: str, db: Session = Depends(get_db)) -> DeleteResponse:
+    service = DreamService(db)
+    try:
+        service.delete_dream(dream_id)
+    except DreamNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    return DeleteResponse(deleted=1, ids=[dream_id])
+
+
+@router.post("/batch-delete", response_model=BatchDeleteResponse)
+@router.post("/batch-delete/", response_model=BatchDeleteResponse, include_in_schema=False)
+def batch_delete_dreams(payload: BatchDeleteRequest, db: Session = Depends(get_db)) -> BatchDeleteResponse:
+    service = DreamService(db)
+    deleted_count = service.batch_delete_dreams(payload.ids)
+    return BatchDeleteResponse(deleted=deleted_count, ids=payload.ids)
 
 
 @router.post("/{dream_id}/ai-autofill", response_model=AIAutofillResponse)
@@ -135,6 +162,32 @@ def generate_ai_image(
 
     try:
         updated = service.apply_ai_image(dream, payload)
+    except AIServiceNotConfiguredError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+    except AIServiceRequestError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        ) from exc
+    return build_dream_response(updated)
+
+
+@router.post("/{dream_id}/analyze", response_model=DreamResponse)
+def analyze_dream(
+    dream_id: str,
+    db: Session = Depends(get_db),
+) -> DreamResponse:
+    service = DreamService(db)
+    try:
+        dream = service.get_dream_or_404(dream_id)
+    except DreamNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+    try:
+        updated = service.apply_ai_analysis(dream)
     except AIServiceNotConfiguredError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

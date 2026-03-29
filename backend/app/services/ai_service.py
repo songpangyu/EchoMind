@@ -103,6 +103,37 @@ class AIService:
             configured=True,
         )
 
+    def generate_dream_analysis(self, transcript: str) -> dict:
+        if not self.settings.ai_text_enabled:
+            raise AIServiceNotConfiguredError("AI text service is not configured.")
+        
+        prompt = (
+            "You are an expert dream analyst. Analyze the provided dream transcript from 5 different psychological and symbolic perspectives: "
+            "life, work, relationship, emotion, and spiritual.\n\n"
+            "Return ONLY a pure JSON object with exactly those 5 keys. For each key, provide:\n"
+            "  - 'summary': A short paragraph summarizing the dream's meaning from this perspective.\n"
+            "  - 'insights': An array of 2 to 4 key takeaways or symbolic interpretations.\n"
+            "  - 'suggestion': A single actionable piece of advice or reflection.\n\n"
+            "Ensure the output is strictly valid JSON."
+        )
+        
+        response_data = self._post_json(
+            base_url=self.settings.ai_text_base_url,
+            api_key=self.settings.ai_text_api_key,
+            path="/chat/completions",
+            payload={
+                "model": self.settings.ai_text_model,
+                "messages": [
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": f"Dream transcript:\n{transcript}"},
+                ],
+                "temperature": 0.5,
+                "response_format": {"type": "json_object"},
+            },
+        )
+        content = response_data["choices"][0]["message"]["content"]
+        return json.loads(content)
+
     def generate_image(self, *, dream, payload: GenerateDreamImageRequest) -> GeneratedImage:
         if not self.settings.ai_image_enabled:
             raise AIServiceNotConfiguredError("AI image service is not configured.")
@@ -219,14 +250,24 @@ class AIService:
         transcript_excerpt = shorten(" ".join(transcript.split()), width=420, placeholder="...")
         mood_text = mood or self._fallback_mood(transcript)
         title_text = title.strip() if title else "Untitled dream"
+        medium = "illustration"
+        if style == "realistic":
+            medium = "photographic image"
+        elif style == "3d-cartoon":
+            medium = "3D cartoon render"
+        elif style in ["watercolor", "oil-paint", "sketch"]:
+            medium = f"{style} artwork"
+        elif style == "anime":
+            medium = "anime drawing"
+
         return (
-            "Create a single dream illustration in a 4:3 landscape composition. "
+            f"Create a single dream {medium} in a 4:3 landscape composition. "
             f"Dream title: {title_text}. "
             f"Dominant feeling: {mood_text}. "
             f"Key symbols: {normalized_tags}. "
             f"Dream description: {transcript_excerpt}. "
             f"Visual direction: {style_prompt}. "
-            "Keep the image visually coherent, surreal but readable, and avoid any text, watermark, UI, split panels, or collage."
+            "Keep the image visually coherent, avoid any text, watermark, UI, split panels, or collage."
         )
 
     def _resolve_image_model_name(self, configured_model: str) -> str:

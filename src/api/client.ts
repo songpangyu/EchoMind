@@ -2,7 +2,7 @@ const API_BASE_URL = 'https://echomind.ulme.cn/api/v1';
 const NETWORK_RETRY_DELAY_MS = 350;
 
 type RequestOptions = RequestInit & {
-  query?: Record<string, string | number | undefined | null>;
+  query?: Record<string, string | number | boolean | undefined | null>;
 };
 
 const buildUrl = (path: string, query?: RequestOptions['query']) => {

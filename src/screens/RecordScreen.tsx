@@ -41,9 +41,9 @@ import {
 import { ScreenWrapper } from '../components/ScreenWrapper';
 
 const ART_STYLES: { id: string; label: string; icon: IconName; uri: string; hint: string }[] = [
+  { id: 'anime', label: 'Anime / Manga', icon: 'flag', uri: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=600&h=400&fit=crop', hint: 'Bold framing, expressive linework, vivid dream energy.' },
   { id: 'realistic', label: 'Realistic', icon: 'image', uri: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=600&h=400&fit=crop', hint: 'Natural lighting, grounded detail, cinematic realism.' },
   { id: '3d-cartoon', label: '3D Cartoon', icon: 'sparkles', uri: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600&h=400&fit=crop', hint: 'Playful shapes, polished animation feel, softer mood.' },
-  { id: 'anime', label: 'Anime / Manga', icon: 'flag', uri: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=600&h=400&fit=crop', hint: 'Bold framing, expressive linework, vivid dream energy.' },
   { id: 'watercolor', label: 'Watercolor', icon: 'palette', uri: 'https://images.unsplash.com/photo-1518241353330-0f7941c2d9b5?w=600&h=400&fit=crop', hint: 'Soft edges, airy washes, poetic and gentle atmosphere.' },
   { id: 'oil-paint', label: 'Oil Painting', icon: 'brush', uri: 'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=600&h=400&fit=crop', hint: 'Richer texture, dramatic lighting, gallery-style composition.' },
   { id: 'sketch', label: 'Pencil Sketch', icon: 'pencil', uri: 'https://images.unsplash.com/photo-1511497584788-876760111969?w=600&h=400&fit=crop', hint: 'Graphite texture, monochrome mood, hand-drawn memory.' },
@@ -641,447 +641,447 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
 
   return (
     <ScreenWrapper>
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <View style={styles.container}>
-        <FloatingParticles />
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.container}>
+          <FloatingParticles />
 
-        {/* Save success toast */}
-        <RNAnimated.View
-          style={[
-            styles.saveToast,
-            { opacity: saveToastAnim, transform: [{ translateY: saveToastAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }] },
-          ]}
-          pointerEvents="none"
-        >
-          <Text style={styles.saveToastText}><Icon name="check" size={16} color={colors.mintGreen} />  Dream saved!</Text>
-        </RNAnimated.View>
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Close button (top-left) */}
-          {onClose && (
-            <TouchableOpacity
-              style={styles.closeBtn}
-              onPress={onClose}
-              activeOpacity={0.7}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Icon name="close" size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
-          )}
-
-          {/* Mode Switcher */}
-          <View style={styles.modeSwitcher}>
-            {(['voice', 'text'] as InputMode[]).map(m => (
+          {/* Save success toast */}
+          <RNAnimated.View
+            style={[
+              styles.saveToast,
+              { opacity: saveToastAnim, transform: [{ translateY: saveToastAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }] },
+            ]}
+            pointerEvents="none"
+          >
+            <Text style={styles.saveToastText}><Icon name="check" size={16} color={colors.mintGreen} />  Dream saved!</Text>
+          </RNAnimated.View>
+          <ScrollView
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Close button (top-left) */}
+            {onClose && (
               <TouchableOpacity
-                key={m}
-                style={[styles.modeBtn, mode === m && styles.modeBtnActive]}
-                onPress={() => switchMode(m)}
+                style={styles.closeBtn}
+                onPress={onClose}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Text style={styles.modeBtnIcon}>{m === 'voice' ? <Icon name="mic" size={18} color={mode === m ? colors.mintGreen : colors.textTertiary} /> : <Icon name="pen" size={18} color={mode === m ? colors.mintGreen : colors.textTertiary} />}</Text>
-                <Text style={[styles.modeBtnText, mode === m && styles.modeBtnTextActive]}>
-                  {m === 'voice' ? 'Voice' : 'Type'}
-                </Text>
+                <Icon name="close" size={20} color={colors.textSecondary} />
               </TouchableOpacity>
-            ))}
-          </View>
+            )}
 
-          {/* ── VOICE MODE ── */}
-          {mode === 'voice' && (
-            <>
-              {/* Big Record Button */}
-              <View style={styles.recordArea}>
+            {/* Mode Switcher */}
+            <View style={styles.modeSwitcher}>
+              {(['voice', 'text'] as InputMode[]).map(m => (
                 <TouchableOpacity
-                  style={styles.recordButtonTouch}
-                  onPress={
-                    recordState === 'recording'
-                      ? pauseRecording
-                      : recordState === 'idle'
-                        ? () => startRecording()
-                        : recordState === 'paused'
-                          ? resumeRecording
-                          : undefined
-                  }
-                  activeOpacity={0.85}
-                  disabled={recordState === 'done'}
-                  hitSlop={{ top: 18, bottom: 18, left: 18, right: 18 }}
+                  key={m}
+                  style={[styles.modeBtn, mode === m && styles.modeBtnActive]}
+                  onPress={() => switchMode(m)}
                 >
-                  <Animated.View style={[styles.recordRing, pulseBtnStyle,
-                  recordState === 'recording' && styles.recordRingActive]}>
-                    <View style={[styles.recordInner, recordState === 'recording' && styles.recordInnerActive, recordState === 'paused' && styles.recordInnerPaused]}>
-                      <Text style={styles.recordIcon}>
-                        {recordState === 'recording'
-                          ? <Icon name="pause" size={44} color="#e74c3c" />
-                          : recordState === 'paused'
-                            ? <Icon name="play" size={44} color={colors.mintGreen} />
-                            : <Icon name="mic" size={44} color={colors.mintGreen} />}
-                      </Text>
-                    </View>
-                  </Animated.View>
-                </TouchableOpacity>
-
-                {recordState !== 'idle' && (
-                  <View style={styles.timerRow}>
-                    {recordState === 'recording' && <View style={styles.redDot} />}
-                    {recordState === 'paused' && <View style={styles.pauseDot} />}
-                    <Text style={styles.timerText}>{fmt(timer)}</Text>
-                    {recordState === 'done' && (
-                      <TouchableOpacity
-                        onPress={() => void resetComposer()}
-                        style={styles.retryBtn}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                      >
-                        <Text style={styles.retryText}>Re-record</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                )}
-
-                {recordState === 'paused' && (
-                  <View style={styles.voiceActionRow}>
-                    <TouchableOpacity
-                      style={[styles.voiceActionBtn, styles.voiceActionSecondary]}
-                      onPress={finishRecording}
-                      activeOpacity={0.85}
-                      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                    >
-                      <Icon name="check" size={18} color={colors.textPrimary} />
-                      <Text style={[styles.voiceActionText, styles.voiceActionSecondaryText]}>End</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[styles.voiceActionBtn, styles.voiceActionPrimary]}
-                      onPress={resumeRecording}
-                      activeOpacity={0.85}
-                      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                    >
-                      <Icon name="play" size={18} color={colors.deepTeal} />
-                      <Text style={[styles.voiceActionText, styles.voiceActionPrimaryText]}>Resume</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </View>
-
-              {/* Waveform */}
-              {recordState === 'recording' && (
-                <View style={styles.waveContainer}>
-                  {waveAnims.map((anim, i) => (
-                    <RNAnimated.View key={i} style={[styles.waveBar,
-                    { height: anim.interpolate({ inputRange: [0, 1], outputRange: [4, 40] }) }]} />
-                  ))}
-                </View>
-              )}
-
-              {/* Live / Editable Transcript */}
-              {(recordState === 'recording' || recordState === 'paused' || recordState === 'done') && (
-                <GlassCard style={styles.transcriptCard}>
-                  <View style={styles.transcriptHeader}>
-                    <View style={styles.transcriptHeaderLeft}>
-                      {recordState === 'recording'
-                        ? <View style={styles.liveDot} />
-                        : recordState === 'paused'
-                          ? <View style={styles.pauseDotSmall} />
-                          : <Icon name="pen" size={14} color={colors.mintGreen} />}
-                      <Text style={styles.transcriptLabel}>
-                        {recordState === 'recording'
-                          ? 'Live Transcript'
-                          : recordState === 'paused'
-                            ? 'Paused Transcript'
-                            : 'Transcript — tap to edit'}
-                      </Text>
-                    </View>
-                    {speechAvailable === false && (
-                      <TouchableOpacity
-                        onPress={() => Alert.alert('Speech Unavailable', 'This simulator or device does not currently expose Apple speech recognition. Try a physical iPhone for the most reliable testing.')}
-                      >
-                        <Icon name="warning" size={16} color={colors.warning} />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                  <Text style={styles.transcriptHelperText}>{speechStatusText}</Text>
-                  <TextInput
-                    style={styles.transcriptInput}
-                    value={transcript}
-                    onChangeText={setTranscript}
-                    multiline
-                    editable={recordState === 'done'}
-                    placeholder="Transcription will appear here..."
-                    placeholderTextColor={colors.textTertiary}
-                    scrollEnabled={false}
-                  />
-                </GlassCard>
-              )}
-            </>
-          )}
-
-          {/* ── TEXT MODE ── */}
-          {mode === 'text' && (
-            <GlassCard style={styles.transcriptCard}>
-              <Text style={styles.transcriptLabel}><Icon name="pen" size={14} color={colors.mintGreen} />  Your dream</Text>
-              <TextInput
-                style={[styles.transcriptInput, { minHeight: 180 }]}
-                value={transcript}
-                onChangeText={(t) => {
-                  setTranscript(t);
-                  setShowDetails(t.trim().length > 10);
-                }}
-                multiline
-                placeholder="Describe your dream in as much detail as you remember..."
-                placeholderTextColor={colors.textTertiary}
-                textAlignVertical="top"
-                scrollEnabled={false}
-              />
-              {transcript.length > 0 && (
-                <Text style={styles.charCount}>{transcript.length} chars</Text>
-              )}
-            </GlassCard>
-          )}
-
-          {/* ── DETAILS — shown after recording stops or user types enough ── */}
-          {showDetails && (
-            <View style={styles.detailsWrapper}>
-              <GlassCard style={styles.detailsCard}>
-                {errorMessage && (
-                  <Text style={styles.errorText}>{errorMessage}</Text>
-                )}
-                {/* AI badge button — top-right corner */}
-                <TouchableOpacity
-                  style={[styles.aiBadgeBtn, aiAutoFilling && styles.aiBadgeBtnLoading]}
-                  onPress={handleAiAutoFill}
-                  disabled={aiAutoFilling}
-                >
-                  <Text style={styles.aiBadgeLabel}>
-                    {aiAutoFilling ? '⏳ Filling...' : '⚡ AI Auto Fill'}
+                  <Text style={styles.modeBtnIcon}>{m === 'voice' ? <Icon name="mic" size={18} color={mode === m ? colors.mintGreen : colors.textTertiary} /> : <Icon name="pen" size={18} color={mode === m ? colors.mintGreen : colors.textTertiary} />}</Text>
+                  <Text style={[styles.modeBtnText, mode === m && styles.modeBtnTextActive]}>
+                    {m === 'voice' ? 'Voice' : 'Type'}
                   </Text>
                 </TouchableOpacity>
+              ))}
+            </View>
 
-                {/* Title */}
-                <Text style={styles.detailLabel}>Dream Title</Text>
-                <TextInput
-                  style={styles.titleInput}
-                  value={title}
-                  onChangeText={setTitle}
-                  placeholder="Give your dream a name..."
-                  placeholderTextColor={colors.textTertiary}
-                />
+            {/* ── VOICE MODE ── */}
+            {mode === 'voice' && (
+              <>
+                {/* Big Record Button */}
+                <View style={styles.recordArea}>
+                  <TouchableOpacity
+                    style={styles.recordButtonTouch}
+                    onPress={
+                      recordState === 'recording'
+                        ? pauseRecording
+                        : recordState === 'idle'
+                          ? () => startRecording()
+                          : recordState === 'paused'
+                            ? resumeRecording
+                            : undefined
+                    }
+                    activeOpacity={0.85}
+                    disabled={recordState === 'done'}
+                    hitSlop={{ top: 18, bottom: 18, left: 18, right: 18 }}
+                  >
+                    <Animated.View style={[styles.recordRing, pulseBtnStyle,
+                    recordState === 'recording' && styles.recordRingActive]}>
+                      <View style={[styles.recordInner, recordState === 'recording' && styles.recordInnerActive, recordState === 'paused' && styles.recordInnerPaused]}>
+                        <Text style={styles.recordIcon}>
+                          {recordState === 'recording'
+                            ? <Icon name="pause" size={44} color="#e74c3c" />
+                            : recordState === 'paused'
+                              ? <Icon name="play" size={44} color={colors.mintGreen} />
+                              : <Icon name="mic" size={44} color={colors.mintGreen} />}
+                        </Text>
+                      </View>
+                    </Animated.View>
+                  </TouchableOpacity>
 
-                {/* Mood */}
-                <Text style={styles.detailLabel}>How did it feel?</Text>
-                <View style={styles.moodRow}>
-                  {MOOD_OPTIONS.map((m, i) => (
-                    <TouchableOpacity
-                      key={i}
-                      style={[styles.moodBtn, selectedMood === i && styles.moodBtnActive]}
-                      onPress={() => setSelectedMood(selectedMood === i ? null : i)}
-                    >
-                      <Text style={styles.moodEmoji}>{m.emoji}</Text>
-                      <Text style={[styles.moodLabel, selectedMood === i && styles.moodLabelActive]}>
-                        {m.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                {/* Tags */}
-                <Text style={styles.detailLabel}>Tags</Text>
-                <Text style={styles.sectionHint}>Quick Tags</Text>
-                <View style={styles.tagRow}>
-                  {QUICK_TAGS.map(tag => (
-                    <TouchableOpacity
-                      key={tag}
-                      style={[styles.tag, selectedTags.includes(tag) && styles.tagActive]}
-                      onPress={() => toggleTag(tag)}
-                    >
-                      <Text style={[styles.tagText, selectedTags.includes(tag) && styles.tagTextActive]}>
-                        {tag}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                {aiSuggestedTags.length > 0 && (
-                  <>
-                    <Text style={styles.sectionHint}>AI Suggested Tags</Text>
-                    <View style={styles.tagRow}>
-                      {aiSuggestedTags.map(tag => (
+                  {recordState !== 'idle' && (
+                    <View style={styles.timerRow}>
+                      {recordState === 'recording' && <View style={styles.redDot} />}
+                      {recordState === 'paused' && <View style={styles.pauseDot} />}
+                      <Text style={styles.timerText}>{fmt(timer)}</Text>
+                      {recordState === 'done' && (
                         <TouchableOpacity
-                          key={`ai-${tag}`}
-                          style={[styles.tag, styles.aiTag, selectedTags.includes(tag) && styles.tagActive]}
-                          onPress={() => toggleTag(tag)}
+                          onPress={() => void resetComposer()}
+                          style={styles.retryBtn}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                         >
-                          <Text style={[styles.tagText, styles.aiTagText, selectedTags.includes(tag) && styles.tagTextActive]}>
-                            {tag}
-                          </Text>
+                          <Text style={styles.retryText}>Re-record</Text>
                         </TouchableOpacity>
-                      ))}
+                      )}
                     </View>
-                  </>
-                )}
+                  )}
 
-                {/* AI Image — style picker + generate */}
-
-
-                {/* Style dropdown trigger */}
-                <TouchableOpacity
-                  style={styles.dropdownTrigger}
-                  onPress={() => setStyleDropdownOpen(v => !v)}
-                  activeOpacity={0.85}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Text style={styles.dropdownTriggerText}>
-                    <Icon name={selectedArtStyle.icon} size={16} color={colors.mintGreen} />{' '}
-                    {selectedArtStyle.label}
-                  </Text>
-                  <Text style={styles.dropdownArrow}>{styleDropdownOpen ? '▲' : '▼'}</Text>
-                </TouchableOpacity>
-
-                {/* Dropdown options */}
-                {styleDropdownOpen && (
-                  <View style={styles.dropdownList}>
-                    {ART_STYLES.map(s => (
+                  {recordState === 'paused' && (
+                    <View style={styles.voiceActionRow}>
                       <TouchableOpacity
-                        key={s.id}
-                        style={[styles.dropdownItem, imageStyleId === s.id && styles.dropdownItemActive]}
-                        onPress={() => { setImageStyleId(s.id); setStyleDropdownOpen(false); }}
+                        style={[styles.voiceActionBtn, styles.voiceActionSecondary]}
+                        onPress={finishRecording}
                         activeOpacity={0.85}
+                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                       >
-                        <View style={styles.dropdownItemCopy}>
-                          <Text style={styles.dropdownItemText}>
-                            <Icon name={s.icon} size={16} color={colors.mintGreen} />  {s.label}
-                          </Text>
-                          <Text style={styles.dropdownItemHint}>{s.hint}</Text>
-                        </View>
-                        {imageStyleId === s.id && <Text style={styles.dropdownCheck}>✓</Text>}
+                        <Icon name="check" size={18} color={colors.textPrimary} />
+                        <Text style={[styles.voiceActionText, styles.voiceActionSecondaryText]}>End</Text>
                       </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[styles.voiceActionBtn, styles.voiceActionPrimary]}
+                        onPress={resumeRecording}
+                        activeOpacity={0.85}
+                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                      >
+                        <Icon name="play" size={18} color={colors.deepTeal} />
+                        <Text style={[styles.voiceActionText, styles.voiceActionPrimaryText]}>Resume</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+
+                {/* Waveform */}
+                {recordState === 'recording' && (
+                  <View style={styles.waveContainer}>
+                    {waveAnims.map((anim, i) => (
+                      <RNAnimated.View key={i} style={[styles.waveBar,
+                      { height: anim.interpolate({ inputRange: [0, 1], outputRange: [4, 40] }) }]} />
                     ))}
                   </View>
                 )}
 
-                {!hasTranscript && (
-                  <View style={styles.imageStatusCard}>
-                    <Icon name="note" size={16} color={colors.textSecondary} />
-                    <Text style={styles.imageStatusText}>
-                      Record or type your dream first, then the AI can turn it into an image.
-                    </Text>
-                  </View>
+                {/* Live / Editable Transcript */}
+                {(recordState === 'recording' || recordState === 'paused' || recordState === 'done') && (
+                  <GlassCard style={styles.transcriptCard}>
+                    <View style={styles.transcriptHeader}>
+                      <View style={styles.transcriptHeaderLeft}>
+                        {recordState === 'recording'
+                          ? <View style={styles.liveDot} />
+                          : recordState === 'paused'
+                            ? <View style={styles.pauseDotSmall} />
+                            : <Icon name="pen" size={14} color={colors.mintGreen} />}
+                        <Text style={styles.transcriptLabel}>
+                          {recordState === 'recording'
+                            ? 'Live Transcript'
+                            : recordState === 'paused'
+                              ? 'Paused Transcript'
+                              : 'Transcript — tap to edit'}
+                        </Text>
+                      </View>
+                      {speechAvailable === false && (
+                        <TouchableOpacity
+                          onPress={() => Alert.alert('Speech Unavailable', 'This simulator or device does not currently expose Apple speech recognition. Try a physical iPhone for the most reliable testing.')}
+                        >
+                          <Icon name="warning" size={16} color={colors.warning} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                    <Text style={styles.transcriptHelperText}>{speechStatusText}</Text>
+                    <TextInput
+                      style={styles.transcriptInput}
+                      value={transcript}
+                      onChangeText={setTranscript}
+                      multiline
+                      editable={recordState === 'done'}
+                      placeholder="Transcription will appear here..."
+                      placeholderTextColor={colors.textTertiary}
+                      scrollEnabled={false}
+                    />
+                  </GlassCard>
                 )}
+              </>
+            )}
 
-                {imageErrorMessage && (
-                  <View style={[styles.imageStatusCard, styles.imageStatusCardError]}>
-                    <Icon name="warning" size={16} color={colors.error} />
-                    <Text style={[styles.imageStatusText, styles.imageStatusTextError]}>
-                      {imageErrorMessage}
-                    </Text>
-                  </View>
+            {/* ── TEXT MODE ── */}
+            {mode === 'text' && (
+              <GlassCard style={styles.transcriptCard}>
+                <Text style={styles.transcriptLabel}><Icon name="pen" size={14} color={colors.mintGreen} />  Your dream</Text>
+                <TextInput
+                  style={[styles.transcriptInput, { minHeight: 180 }]}
+                  value={transcript}
+                  onChangeText={(t) => {
+                    setTranscript(t);
+                    setShowDetails(t.trim().length > 10);
+                  }}
+                  multiline
+                  placeholder="Describe your dream in as much detail as you remember..."
+                  placeholderTextColor={colors.textTertiary}
+                  textAlignVertical="top"
+                  scrollEnabled={false}
+                />
+                {transcript.length > 0 && (
+                  <Text style={styles.charCount}>{transcript.length} chars</Text>
                 )}
+              </GlassCard>
+            )}
 
-                {/* Generate button: idle or regenerate */}
-                {imageGenState !== 'loading' && (
+            {/* ── DETAILS — shown after recording stops or user types enough ── */}
+            {showDetails && (
+              <View style={styles.detailsWrapper}>
+                <GlassCard style={styles.detailsCard}>
+                  {errorMessage && (
+                    <Text style={styles.errorText}>{errorMessage}</Text>
+                  )}
+                  {/* AI badge button — top-right corner */}
                   <TouchableOpacity
-                    style={[
-                      styles.generateBtn,
-                      !hasTranscript && styles.generateBtnDisabled,
-                      imageGenState === 'done' && imageStyleId === generatedStyleId && styles.generateBtnSubtle,
-                    ]}
-                    onPress={() => generateImage(imageStyleId)}
-                    disabled={!hasTranscript}
-                    activeOpacity={0.9}
+                    style={[styles.aiBadgeBtn, aiAutoFilling && styles.aiBadgeBtnLoading]}
+                    onPress={handleAiAutoFill}
+                    disabled={aiAutoFilling}
                   >
-                    <Text style={styles.generateBtnText}>
-                      {imageErrorMessage
-                        ? `Try ${selectedArtStyle.label} Again`
-                        : imageGenState === 'idle'
-                          ? `Generate ${selectedArtStyle.label}`
-                          : imageStyleId !== generatedStyleId
-                            ? `Regenerate in ${ART_STYLES.find(s => s.id === imageStyleId)?.label}`
-                            : 'Regenerate'}
-                    </Text>
-                    <Text style={styles.generateBtnSubtext}>
-                      {!hasTranscript
-                        ? 'Dream text needed before image generation'
-                        : imageStyleId !== generatedStyleId
-                          ? 'Keep the current image or create a fresh visual take'
-                          : generatedImageUri
-                            ? 'Make another version with the same style'
-                            : 'We use your transcript, mood, and tags to build the prompt'}
+                    <Text style={styles.aiBadgeLabel}>
+                      {aiAutoFilling ? '⏳ Filling...' : '⚡ AI Auto Fill'}
                     </Text>
                   </TouchableOpacity>
-                )}
 
-                {/* Loading shimmer */}
-                {imageGenState === 'loading' && (
-                  generatedImageUri ? (
+                  {/* Title */}
+                  <Text style={styles.detailLabel}>Dream Title</Text>
+                  <TextInput
+                    style={styles.titleInput}
+                    value={title}
+                    onChangeText={setTitle}
+                    placeholder="Give your dream a name..."
+                    placeholderTextColor={colors.textTertiary}
+                  />
+
+                  {/* Mood */}
+                  <Text style={styles.detailLabel}>How did it feel?</Text>
+                  <View style={styles.moodRow}>
+                    {MOOD_OPTIONS.map((m, i) => (
+                      <TouchableOpacity
+                        key={i}
+                        style={[styles.moodBtn, selectedMood === i && styles.moodBtnActive]}
+                        onPress={() => setSelectedMood(selectedMood === i ? null : i)}
+                      >
+                        <Text style={styles.moodEmoji}>{m.emoji}</Text>
+                        <Text style={[styles.moodLabel, selectedMood === i && styles.moodLabelActive]}>
+                          {m.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  {/* Tags */}
+                  <Text style={styles.detailLabel}>Tags</Text>
+                  <Text style={styles.sectionHint}>Quick Tags</Text>
+                  <View style={styles.tagRow}>
+                    {QUICK_TAGS.map(tag => (
+                      <TouchableOpacity
+                        key={tag}
+                        style={[styles.tag, selectedTags.includes(tag) && styles.tagActive]}
+                        onPress={() => toggleTag(tag)}
+                      >
+                        <Text style={[styles.tagText, selectedTags.includes(tag) && styles.tagTextActive]}>
+                          {tag}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  {aiSuggestedTags.length > 0 && (
+                    <>
+                      <Text style={styles.sectionHint}>AI Suggested Tags</Text>
+                      <View style={styles.tagRow}>
+                        {aiSuggestedTags.map(tag => (
+                          <TouchableOpacity
+                            key={`ai-${tag}`}
+                            style={[styles.tag, styles.aiTag, selectedTags.includes(tag) && styles.tagActive]}
+                            onPress={() => toggleTag(tag)}
+                          >
+                            <Text style={[styles.tagText, styles.aiTagText, selectedTags.includes(tag) && styles.tagTextActive]}>
+                              {tag}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </>
+                  )}
+
+                  {/* AI Image — style picker + generate */}
+
+
+                  {/* Style dropdown trigger */}
+                  <TouchableOpacity
+                    style={styles.dropdownTrigger}
+                    onPress={() => setStyleDropdownOpen(v => !v)}
+                    activeOpacity={0.85}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Text style={styles.dropdownTriggerText}>
+                      <Icon name={selectedArtStyle.icon} size={16} color={colors.mintGreen} />{' '}
+                      {selectedArtStyle.label}
+                    </Text>
+                    <Text style={styles.dropdownArrow}>{styleDropdownOpen ? '▲' : '▼'}</Text>
+                  </TouchableOpacity>
+
+                  {/* Dropdown options */}
+                  {styleDropdownOpen && (
+                    <View style={styles.dropdownList}>
+                      {ART_STYLES.map(s => (
+                        <TouchableOpacity
+                          key={s.id}
+                          style={[styles.dropdownItem, imageStyleId === s.id && styles.dropdownItemActive]}
+                          onPress={() => { setImageStyleId(s.id); setStyleDropdownOpen(false); }}
+                          activeOpacity={0.85}
+                        >
+                          <View style={styles.dropdownItemCopy}>
+                            <Text style={styles.dropdownItemText}>
+                              <Icon name={s.icon} size={16} color={colors.mintGreen} />  {s.label}
+                            </Text>
+                            <Text style={styles.dropdownItemHint}>{s.hint}</Text>
+                          </View>
+                          {imageStyleId === s.id && <Text style={styles.dropdownCheck}>✓</Text>}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+
+                  {!hasTranscript && (
+                    <View style={styles.imageStatusCard}>
+                      <Icon name="note" size={16} color={colors.textSecondary} />
+                      <Text style={styles.imageStatusText}>
+                        Record or type your dream first, then the AI can turn it into an image.
+                      </Text>
+                    </View>
+                  )}
+
+                  {imageErrorMessage && (
+                    <View style={[styles.imageStatusCard, styles.imageStatusCardError]}>
+                      <Icon name="warning" size={16} color={colors.error} />
+                      <Text style={[styles.imageStatusText, styles.imageStatusTextError]}>
+                        {imageErrorMessage}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Generate button: idle or regenerate */}
+                  {imageGenState !== 'loading' && (
+                    <TouchableOpacity
+                      style={[
+                        styles.generateBtn,
+                        !hasTranscript && styles.generateBtnDisabled,
+                        imageGenState === 'done' && imageStyleId === generatedStyleId && styles.generateBtnSubtle,
+                      ]}
+                      onPress={() => generateImage(imageStyleId)}
+                      disabled={!hasTranscript}
+                      activeOpacity={0.9}
+                    >
+                      <Text style={styles.generateBtnText}>
+                        {imageErrorMessage
+                          ? `Try ${selectedArtStyle.label} Again`
+                          : imageGenState === 'idle'
+                            ? `Generate ${selectedArtStyle.label}`
+                            : imageStyleId !== generatedStyleId
+                              ? `Regenerate in ${ART_STYLES.find(s => s.id === imageStyleId)?.label}`
+                              : 'Regenerate'}
+                      </Text>
+                      <Text style={styles.generateBtnSubtext}>
+                        {!hasTranscript
+                          ? 'Dream text needed before image generation'
+                          : imageStyleId !== generatedStyleId
+                            ? 'Keep the current image or create a fresh visual take'
+                            : generatedImageUri
+                              ? 'Make another version with the same style'
+                              : 'We use your transcript, mood, and tags to build the prompt'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {/* Loading shimmer */}
+                  {imageGenState === 'loading' && (
+                    generatedImageUri ? (
+                      <View style={styles.aiImageWrap}>
+                        <View style={styles.imagePreviewFrame}>
+                          <Image
+                            source={{ uri: generatedImageUri }}
+                            style={[styles.aiImage, styles.aiImageLoading]}
+                            resizeMode="cover"
+                          />
+                          <View style={styles.imageOverlay}>
+                            <RNAnimated.View style={[styles.imageLoadingInner, { opacity: shimmerAnim }]}>
+                              <ActivityIndicator color={colors.mintGreen} size="small" />
+                              <Text style={styles.imageLoadingText}>Painting a new {selectedArtStyle.label} version...</Text>
+                            </RNAnimated.View>
+                          </View>
+                        </View>
+                      </View>
+                    ) : (
+                      <View style={styles.imageLoadingBox}>
+                        <RNAnimated.View style={[styles.imageLoadingInner, { opacity: shimmerAnim }]}>
+                          <Icon name="moon" size={44} color={colors.mintGreen} />
+                          <Text style={styles.imageLoadingText}>Painting your dream...</Text>
+                          <Text style={styles.imageLoadingSubtext}>Using {selectedArtStyle.label} style in a 4:3 frame</Text>
+                        </RNAnimated.View>
+                      </View>
+                    )
+                  )}
+
+                  {/* Generated image — persists across style changes */}
+                  {imageGenState === 'done' && generatedImageUri && (
                     <View style={styles.aiImageWrap}>
                       <View style={styles.imagePreviewFrame}>
                         <Image
                           source={{ uri: generatedImageUri }}
-                          style={[styles.aiImage, styles.aiImageLoading]}
+                          style={styles.aiImage}
                           resizeMode="cover"
                         />
-                        <View style={styles.imageOverlay}>
-                          <RNAnimated.View style={[styles.imageLoadingInner, { opacity: shimmerAnim }]}>
-                            <ActivityIndicator color={colors.mintGreen} size="small" />
-                            <Text style={styles.imageLoadingText}>Painting a new {selectedArtStyle.label} version...</Text>
-                          </RNAnimated.View>
-                        </View>
+                      </View>
+                      <View style={styles.aiImageMeta}>
+                        <Text style={styles.aiImageLabel}>
+                          <Icon name={generatedArtStyle?.icon ?? 'image'} size={14} color={colors.textSecondary} />{'  '}
+                          {generatedArtStyle?.label ?? generatedStyleId} Style
+                        </Text>
+                        {imageStyleId !== generatedStyleId && (
+                          <Text style={styles.aiImagePending}>
+                            ← tap Regenerate for {ART_STYLES.find(s => s.id === imageStyleId)?.label}
+                          </Text>
+                        )}
                       </View>
                     </View>
-                  ) : (
-                    <View style={styles.imageLoadingBox}>
-                      <RNAnimated.View style={[styles.imageLoadingInner, { opacity: shimmerAnim }]}>
-                        <Icon name="moon" size={44} color={colors.mintGreen} />
-                        <Text style={styles.imageLoadingText}>Painting your dream...</Text>
-                        <Text style={styles.imageLoadingSubtext}>Using {selectedArtStyle.label} style in a 4:3 frame</Text>
-                      </RNAnimated.View>
-                    </View>
-                  )
-                )}
+                  )}
 
-                {/* Generated image — persists across style changes */}
-                {imageGenState === 'done' && generatedImageUri && (
-                  <View style={styles.aiImageWrap}>
-                    <View style={styles.imagePreviewFrame}>
-                      <Image
-                        source={{ uri: generatedImageUri }}
-                        style={styles.aiImage}
-                        resizeMode="cover"
-                      />
-                    </View>
-                    <View style={styles.aiImageMeta}>
-                      <Text style={styles.aiImageLabel}>
-                        <Icon name={generatedArtStyle?.icon ?? 'image'} size={14} color={colors.textSecondary} />{'  '}
-                        {generatedArtStyle?.label ?? generatedStyleId} Style
-                      </Text>
-                      {imageStyleId !== generatedStyleId && (
-                        <Text style={styles.aiImagePending}>
-                          ← tap Regenerate for {ART_STYLES.find(s => s.id === imageStyleId)?.label}
-                        </Text>
-                      )}
-                    </View>
-                  </View>
-                )}
+                  {/* Save */}
+                  <TouchableOpacity
+                    style={[styles.saveBtn, isSaving && { opacity: 0.6 }]}
+                    onPress={saveDream}
+                    disabled={isSaving}
+                  >
+                    <Text style={styles.saveBtnText}><Icon name="check" size={16} color={colors.deepTeal} /> Save Dream</Text>
+                  </TouchableOpacity>
+                </GlassCard>
+              </View>
+            )}
 
-                {/* Save */}
-                <TouchableOpacity
-                  style={[styles.saveBtn, isSaving && { opacity: 0.6 }]}
-                  onPress={saveDream}
-                  disabled={isSaving}
-                >
-                  <Text style={styles.saveBtnText}><Icon name="check" size={16} color={colors.deepTeal} /> Save Dream</Text>
-                </TouchableOpacity>
-              </GlassCard>
-            </View>
-          )}
-
-          <View style={{ height: 120 }} />
-        </ScrollView>
-      </View>
-    </KeyboardAvoidingView>
+            <View style={{ height: 120 }} />
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
     </ScreenWrapper>
   );
 };

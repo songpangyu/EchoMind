@@ -19,7 +19,7 @@ import { FloatingParticles } from '../components/FloatingParticles';
 import { colors, spacing, typography, borderRadius } from '../theme';
 import { RootStackParamList } from '../navigation/types';
 import Icon, { IconName } from '../components/Icon';
-import { listDreams, type Dream, type DreamMood } from '../api/dreams';
+import { listDreams, deleteDream, batchDeleteDreams, type Dream, type DreamMood } from '../api/dreams';
 import { ScreenWrapper } from '../components/ScreenWrapper';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -130,6 +130,7 @@ export const JournalScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [starredIds, setStarredIds] = useState<Set<string>>(new Set());
+  const [reloadKey, setReloadKey] = useState(0);
 
   const monthLabel = getMonthLabel(monthYear.year, monthYear.month);
   const startDay = new Date(monthYear.year, monthYear.month - 1, 1).getDay();
@@ -170,7 +171,7 @@ export const JournalScreen: React.FC = () => {
       active = false;
       clearTimeout(timeout);
     };
-  }, [monthYear.month, monthYear.year, searchText]);
+  }, [monthYear.month, monthYear.year, searchText, reloadKey]);
 
   // ── Derived data ──
   const dreamsThisMonth = useMemo(() =>
@@ -290,9 +291,15 @@ export const JournalScreen: React.FC = () => {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => {
-            exitMultiSelect();
-            showToast(`🗑 ${count} dream${count > 1 ? 's' : ''} deleted`);
+          onPress: async () => {
+            try {
+              await batchDeleteDreams(Array.from(selectedIds));
+              exitMultiSelect();
+              showToast(`🗑 ${count} dream${count > 1 ? 's' : ''} deleted`);
+              setReloadKey(k => k + 1);
+            } catch (error) {
+              showToast('Failed to delete dreams');
+            }
           },
         },
       ]
@@ -313,7 +320,15 @@ export const JournalScreen: React.FC = () => {
               {
                 text: 'Delete',
                 style: 'destructive',
-                onPress: () => showToast('🗑 Dream deleted'),
+                onPress: async () => {
+                  try {
+                    await deleteDream(dream.id);
+                    showToast('🗑 Dream deleted');
+                    setReloadKey(k => k + 1);
+                  } catch (error) {
+                    showToast('Failed to delete dream');
+                  }
+                },
               },
             ]
           );
