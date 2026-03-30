@@ -71,6 +71,9 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   const buildHeaders = async (token?: string | null): Promise<Record<string, string>> => {
     const h: Record<string, string> = {
       Accept: 'application/json',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
       ...(body ? { 'Content-Type': 'application/json' } : {}),
       ...(headers as Record<string, string> | undefined),
     };

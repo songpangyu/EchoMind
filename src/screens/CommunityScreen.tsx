@@ -123,11 +123,12 @@ export const CommunityScreen: React.FC = () => {
     useCallback(() => {
       const justShared = (route.params as any)?.shared === true;
       if (justShared) {
-        loadPosts('recent');
-        setActiveTab('recent');
+        // Clear the param so it doesn't trigger again on subsequent focuses
+        navigation.setParams({ shared: undefined } as any);
+        setActiveTab('recent'); // Will trigger useEffect to load 'recent'
         triggerToast('🎉 Dream shared to community!');
       }
-    }, [route.params])
+    }, [route.params, navigation, triggerToast])
   );
 
   // ── Actions ─────────────────────────────────────────────────────────────────

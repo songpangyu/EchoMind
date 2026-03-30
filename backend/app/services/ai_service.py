@@ -181,7 +181,7 @@ class AIService:
             path="/v1/images/generations",
             payload={
                 "model": self._resolve_image_model_name(self.settings.ai_image_model),
-                "prompt": self._build_image_prompt(
+                "prompt": self._generate_optimized_image_prompt(
                     style=payload.style,
                     transcript=dream.transcript,
                     title=dream.title,
@@ -210,7 +210,7 @@ class AIService:
         return image_url or image_b64
 
     def _generate_huggingface_image(self, *, dream, payload: GenerateDreamImageRequest) -> GeneratedImage:
-        prompt = self._build_image_prompt(
+        prompt = self._generate_optimized_image_prompt(
             style=payload.style,
             transcript=dream.transcript,
             title=dream.title,
@@ -266,6 +266,62 @@ class AIService:
             seen.add(key)
             normalized.append(cleaned[:50])
         return normalized[:5]
+
+    def _generate_optimized_image_prompt(
+        self,
+        *,
+        style: str,
+        transcript: str,
+        title: str | None,
+        mood: str | None,
+        tags: list[str],
+    ) -> str:
+        fallback_prompt = self._build_image_prompt(
+            style=style, transcript=transcript, title=title, mood=mood, tags=tags
+        )
+        if not self.settings.ai_text_enabled:
+            return fallback_prompt
+
+        style_prompt = IMAGE_STYLE_PROMPTS.get(style, IMAGE_STYLE_PROMPTS["realistic"])
+        normalized_tags = ", ".join(tag.strip() for tag in tags if tag.strip()) or "dream symbols"
+        title_text = title.strip() if title else "Untitled dream"
+        mood_text = mood or self._fallback_mood(transcript)
+
+        system_instruction = (
+            "You are an expert AI image generation prompt engineer. "
+            "Create a highly detailed, descriptive, and visually evocative prompt for an AI image generator based on the following dream report. "
+            f"The image MUST follow this style guidance: {style_prompt}. "
+            "Do NOT output any markdown, intro text, or explanation. ONLY output the raw image prompt text ready to be sent to an image generator (like Midjourney or DALL-E) in English. "
+            "Keep it coherent, avoid describing any text, watermarks, UIs, split panels, or collages."
+        )
+
+        user_content = (
+            f"Dream Title: {title_text}\n"
+            f"Dominant feeling: {mood_text}\n"
+            f"Key symbols: {normalized_tags}\n"
+            f"Dream description: {transcript}"
+        )
+
+        try:
+            response_data = self._post_json(
+                base_url=self.settings.ai_text_base_url,
+                api_key=self.settings.ai_text_api_key,
+                path="/chat/completions",
+                payload={
+                    "model": self.settings.ai_text_model,
+                    "messages": [
+                        {"role": "system", "content": system_instruction},
+                        {"role": "user", "content": user_content},
+                    ],
+                    "temperature": 0.7,
+                },
+            )
+            content = response_data["choices"][0]["message"]["content"].strip()
+            if len(content) < 10:
+                return fallback_prompt
+            return content
+        except Exception:
+            return fallback_prompt
 
     def _build_image_prompt(
         self,
