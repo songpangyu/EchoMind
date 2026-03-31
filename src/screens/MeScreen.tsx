@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
     View,
     Text,
@@ -10,7 +10,7 @@ import {
     Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/types';
 import { GlassCard } from '../components/GlassCard';
@@ -62,11 +62,17 @@ const MENU_ITEMS: { icon: IconName; label: string; route: keyof RootStackParamLi
 export const MeScreen: React.FC = () => {
     const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
     const insets = useSafeAreaInsets();
-    const { user, logout } = useAuth();
+    const { user, logout, refreshUser } = useAuth();
     const [tab, setTab] = useState<'profile' | 'insights'>('profile');
     const [period, setPeriod] = useState<'week' | 'month'>('week');
     const maxDreams = Math.max(...WEEKLY_DATA.map(d => d.dreams));
     const maxMonthly = Math.max(...MONTHLY_DREAMS);
+
+    useFocusEffect(
+        useCallback(() => {
+            refreshUser();
+        }, [refreshUser])
+    );
 
     const handleLogout = async () => {
         Alert.alert('Sign Out', 'Are you sure you want to sign out?', [

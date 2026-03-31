@@ -67,19 +67,6 @@ export const login = async (
   return tokens;
 };
 
-export const loginWithApple = async (
-  identity_token: string,
-  first_name?: string | null,
-  last_name?: string | null,
-): Promise<TokenPair> => {
-  const tokens = await apiRequest<TokenPair>('/auth/apple-login', {
-    method: 'POST',
-    body: JSON.stringify({ identity_token, first_name, last_name }),
-    skipAuth: true,
-  });
-  await saveTokens(tokens);
-  return tokens;
-};
 
 export const refreshAccessToken = async (): Promise<string | null> => {
   const refresh_token = await getRefreshToken();
@@ -109,3 +96,17 @@ export const updateMe = (data: Partial<Pick<UserProfile, 'display_name' | 'bio' 
     method: 'PATCH',
     body: JSON.stringify(data),
   });
+
+export const uploadAvatar = async (imageUri: string, mimeType: string, fileName: string): Promise<UserProfile> => {
+  const formData = new FormData();
+  formData.append('file', {
+    uri: imageUri,
+    type: mimeType,
+    name: fileName,
+  } as any);
+
+  return apiRequest<UserProfile>('/auth/me/avatar', {
+    method: 'POST',
+    body: formData as any,
+  });
+};

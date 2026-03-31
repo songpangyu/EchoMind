@@ -17,6 +17,7 @@ import { colors, spacing, typography, borderRadius } from '../theme';
 import { RootStackParamList } from '../navigation/types';
 import Icon, { IconName } from '../components/Icon';
 import { getDream, updateDream, analyzeDream, type Dream, type DreamMood } from '../api/dreams';
+import { sharePost } from '../api/community';
 import { ScreenWrapper } from '../components/ScreenWrapper';
 
 // ─── Mock dream data (in real app these come from route params / store) ────────
@@ -165,11 +166,23 @@ export const DreamDetailScreen: React.FC = () => {
         navigation.goBack();
     };
 
-    const shareToCommunity = () => {
-        navigation.reset({
-            index: 0,
-            routes: [{ name: 'MainTabs', params: { screen: 'Community', params: { shared: true } } }],
-        });
+    const shareToCommunity = async () => {
+        if (!dream) return;
+        try {
+            showToast('Sharing...');
+            await sharePost(dream.id);
+            navigation.reset({
+                index: 0,
+                routes: [{ name: 'MainTabs', params: { screen: 'Community', params: { shared: true } } }],
+            });
+        } catch (e: any) {
+            const msg = e?.message || '';
+            if (msg.includes('already')) {
+                showToast('Already shared!');
+            } else {
+                showToast('Share failed: ' + (msg || 'Unknown error'));
+            }
+        }
     };
 
     if (loading) {

@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { appleAuth, AppleButton } from '@invertase/react-native-apple-authentication';
+
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
 import { colors, spacing, typography, borderRadius } from '../theme';
@@ -23,7 +23,7 @@ type Nav = StackNavigationProp<RootStackParamList>;
 export const LoginScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
-  const { login, loginWithApple } = useAuth();
+  const { login } = useAuth();
 
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -46,34 +46,6 @@ export const LoginScreen: React.FC = () => {
     }
   };
 
-  const handleAppleLogin = async () => {
-    try {
-      setError(null);
-      setLoading(true);
-      const appleAuthRequestResponse = await appleAuth.performRequest({
-        requestedOperation: appleAuth.Operation.LOGIN,
-        requestedScopes: [appleAuth.Scope.EMAIL, appleAuth.Scope.FULL_NAME],
-      });
-
-      const credentialState = await appleAuth.getCredentialStateForUser(appleAuthRequestResponse.user);
-
-      if (credentialState === appleAuth.State.AUTHORIZED) {
-        const identityToken = appleAuthRequestResponse.identityToken;
-        if (!identityToken) throw new Error('Missing Apple Identity Token');
-
-        const firstName = appleAuthRequestResponse.fullName?.givenName;
-        const lastName = appleAuthRequestResponse.fullName?.familyName;
-
-        await loginWithApple(identityToken, firstName, lastName);
-      }
-    } catch (e: any) {
-      if (e.code !== appleAuth.Error.CANCELED) {
-        setError(e?.message || 'Apple Sign-In failed');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <KeyboardAvoidingView
@@ -138,20 +110,7 @@ export const LoginScreen: React.FC = () => {
             )}
           </TouchableOpacity>
 
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or continue with</Text>
-            <View style={styles.dividerLine} />
-          </View>
 
-          {appleAuth.isSupported && (
-            <AppleButton
-              buttonStyle={AppleButton.Style.WHITE}
-              buttonType={AppleButton.Type.SIGN_IN}
-              style={styles.appleBtn}
-              onPress={handleAppleLogin}
-            />
-          )}
 
           <TouchableOpacity
             onPress={() => navigation.navigate('Register' as any)}
@@ -213,9 +172,5 @@ const styles = StyleSheet.create({
   switchText: { ...typography.caption, color: colors.textSecondary },
   switchHighlight: { color: colors.mintGreen, fontWeight: '600' },
 
-  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: spacing.md },
-  dividerLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.1)' },
-  dividerText: { ...typography.caption, color: colors.textTertiary, paddingHorizontal: spacing.sm },
 
-  appleBtn: { width: '100%', height: 48 },
 });

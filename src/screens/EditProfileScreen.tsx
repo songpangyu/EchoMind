@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, ScrollView, Image, Alert, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { GlassCard } from '../components/GlassCard';
@@ -7,11 +7,65 @@ import { colors, spacing, typography, borderRadius } from '../theme';
 import Icon from '../components/Icon';
 import { FloatingParticles } from '../components/FloatingParticles';
 import { ScreenWrapper } from '../components/ScreenWrapper';
+import { useAuth } from '../contexts/AuthContext';
+import { uploadAvatar, updateMe } from '../api/auth';
+import { launchImageLibrary } from 'react-native-image-picker';
 
 export const EditProfileScreen: React.FC = () => {
     const insets = useSafeAreaInsets();
     const navigation = useNavigation();
-    const [name, setName] = useState('Dreamer');
+    const { user, refreshUser } = useAuth();
+    
+    const [name, setName] = useState(user?.display_name || 'Dreamer');
+    const [avatarUri, setAvatarUri] = useState<string | null>(user?.avatar_url || null);
+    const [avatarFile, setAvatarFile] = useState<any>(null);
+    const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+        if (user) {
+            setName(user.display_name || 'Dreamer');
+            setAvatarUri(user.avatar_url || null);
+        }
+    }, [user?.id]);
+
+    const handlePickImage = async () => {
+        const result = await launchImageLibrary({ mediaType: 'photo', quality: 0.8 });
+        if (!result.didCancel && result.assets && result.assets.length > 0) {
+            const asset = result.assets[0];
+            setAvatarUri(asset.uri || null);
+            setAvatarFile(asset);
+        }
+    };
+
+    const handleSave = async () => {
+        try {
+            setIsLoading(true);
+            let updated = false;
+
+            if (avatarFile && avatarFile.uri) {
+                await uploadAvatar(
+                    avatarFile.uri,
+                    avatarFile.type || 'image/jpeg',
+                    avatarFile.fileName || 'avatar.jpg'
+                );
+                updated = true;
+            }
+
+            if (name !== user?.display_name) {
+                await updateMe({ display_name: name });
+                updated = true;
+            }
+
+            if (updated) {
+                await refreshUser();
+            }
+            navigation.goBack();
+        } catch (err: any) {
+            Alert.alert('Error', err.message || 'Failed to update profile');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     return (
         <ScreenWrapper>
@@ -22,15 +76,23 @@ export const EditProfileScreen: React.FC = () => {
                     <Text style={styles.backBtnText}>‹</Text>
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Edit Profile</Text>
-                <TouchableOpacity onPress={() => navigation.goBack()}>
-                    <Text style={styles.saveBtnText}>Save</Text>
+                <TouchableOpacity onPress={handleSave} disabled={isLoading}>
+                    {isLoading ? (
+                        <ActivityIndicator color={colors.mintGreen} size="small" />
+                    ) : (
+                        <Text style={styles.saveBtnText}>Save</Text>
+                    )}
                 </TouchableOpacity>
             </View>
 
             <ScrollView style={styles.scrollView}>
                 <View style={styles.avatarSection}>
-                    <TouchableOpacity style={styles.avatarWrapper}>
-                        <Icon name="moon" size={32} color={colors.mintGreen} />
+                    <TouchableOpacity style={styles.avatarWrapper} onPress={handlePickImage} disabled={isLoading}>
+                        {avatarUri ? (
+                            <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
+                        ) : (
+                            <Icon name="moon" size={32} color={colors.mintGreen} />
+                        )}
                         <View style={styles.editIconWrapper}>
                             <Icon name="camera" size={16} color={colors.textPrimary} />
                         </View>
@@ -110,6 +172,12 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         marginBottom: spacing.sm,
         position: 'relative',
+        overflow: 'hidden',
+    },
+    avatarImage: {
+        width: '100%',
+        height: '100%',
+        borderRadius: 60,
     },
     avatarEmoji: {
         fontSize: 50,

@@ -74,7 +74,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       'Cache-Control': 'no-cache, no-store, must-revalidate',
       'Pragma': 'no-cache',
       'Expires': '0',
-      ...(body ? { 'Content-Type': 'application/json' } : {}),
+      ...(body && typeof FormData !== 'undefined' && body instanceof FormData ? {} : body ? { 'Content-Type': 'application/json' } : {}),
       ...(headers as Record<string, string> | undefined),
     };
     if (!skipAuth && token) {

@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { clearTokens, getAccessToken, getMe, login as apiLogin, loginWithApple as apiLoginWithApple, logout as apiLogout, register as apiRegister, UserProfile } from '../api/auth';
+import { clearTokens, getAccessToken, getMe, login as apiLogin, logout as apiLogout, register as apiRegister, UserProfile } from '../api/auth';
 import { UnauthenticatedError } from '../api/client';
 
 interface AuthContextValue {
@@ -7,7 +7,7 @@ interface AuthContextValue {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (identifier: string, password: string) => Promise<void>;
-  loginWithApple: (identityToken: string, firstName?: string | null, lastName?: string | null) => Promise<void>;
+
   register: (username: string, password: string, displayName: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -47,11 +47,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(profile);
   }, []);
 
-  const loginWithApple = useCallback(async (identityToken: string, firstName?: string | null, lastName?: string | null) => {
-    await apiLoginWithApple(identityToken, firstName, lastName);
-    const profile = await getMe();
-    setUser(profile);
-  }, []);
+
 
   const register = useCallback(async (username: string, password: string, displayName: string) => {
     await apiRegister(username, password, displayName);
@@ -77,7 +73,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isLoading,
       isAuthenticated: user !== null,
       login,
-      loginWithApple,
+
       register,
       logout,
       refreshUser,

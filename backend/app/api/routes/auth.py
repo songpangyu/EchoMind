@@ -1,7 +1,8 @@
 import uuid
+import shutil
 
 import jwt
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from jose import JWTError
 from jwt import PyJWKClient
 from pydantic import BaseModel, Field
@@ -40,10 +41,7 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 
-class AppleLoginRequest(BaseModel):
-    identity_token: str
-    first_name: str | None = None
-    last_name: str | None = None
+
 
 
 class TokenResponse(BaseModel):
@@ -149,66 +147,6 @@ def refresh(payload: RefreshRequest, db: Session = Depends(get_db)) -> TokenResp
     )
 
 
-@router.post("/apple-login", response_model=TokenResponse)
-def apple_login(payload: AppleLoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
-    settings = get_settings()
-
-    try:
-        jwks_client = PyJWKClient("https://appleid.apple.com/auth/keys")
-        signing_key = jwks_client.get_signing_key_from_jwt(payload.identity_token)
-
-        data = jwt.decode(
-            payload.identity_token,
-            signing_key.key,
-            algorithms=["RS256"],
-            audience=settings.apple_bundle_id,
-            issuer="https://appleid.apple.com"
-        )
-    except Exception as e:
-        raise HTTPException(status_code=401, detail=f"Invalid Apple identity token: {str(e)}")
-
-    apple_id = data.get("sub")
-    email = data.get("email")
-    if not apple_id:
-        raise HTTPException(status_code=401, detail="Missing subject in Apple token")
-
-    user = db.scalar(select(User).where(User.apple_id == apple_id))
-
-    if not user:
-        if email:
-            existing_email_user = db.scalar(select(User).where(User.email == email))
-            if existing_email_user:
-                existing_email_user.apple_id = apple_id
-                db.commit()
-                db.refresh(existing_email_user)
-                user = existing_email_user
-
-        if not user:
-            # Generate a new unique username
-            base_username = f"apple_{apple_id[:8]}"
-            while db.scalar(select(User).where(User.username == base_username)):
-                base_username = f"user_{uuid.uuid4().hex[:8]}"
-
-            display_name = "Dreamer"
-            if payload.first_name or payload.last_name:
-                display_name = f"{payload.first_name or ''} {payload.last_name or ''}".strip()
-            elif email:
-                display_name = email.split("@")[0]
-
-            user = User(
-                username=base_username,
-                display_name=display_name,
-                email=email,
-                apple_id=apple_id,
-            )
-            db.add(user)
-            db.commit()
-            db.refresh(user)
-
-    return TokenResponse(
-        access_token=create_access_token(user.id),
-        refresh_token=create_refresh_token(user.id),
-    )
 
 
 @router.get("/me", response_model=UserProfileResponse)
@@ -228,6 +166,31 @@ def update_me(
         current_user.bio = payload.bio
     if payload.avatar_url is not None:
         current_user.avatar_url = payload.avatar_url
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
+    return _user_to_profile(current_user)
+
+
+@router.post("/me/avatar", response_model=UserProfileResponse)
+def upload_avatar(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> UserProfileResponse:
+    settings = get_settings()
+    extension = file.filename.split(".")[-1] if file.filename and "." in file.filename else "png"
+    filename = f"avatar-{current_user.id[:8]}-{uuid.uuid4().hex[:8]}.{extension}"
+    
+    # We store avatars in the same media folder as generated AI images
+    destination = settings.generated_media_path / filename
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    
+    with destination.open("wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    avatar_url = f"{settings.app_public_base_url.rstrip('/')}/media/{filename}"
+    current_user.avatar_url = avatar_url
     db.add(current_user)
     db.commit()
     db.refresh(current_user)

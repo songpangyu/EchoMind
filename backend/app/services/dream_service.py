@@ -48,6 +48,13 @@ class DreamService:
             duration_seconds=payload.durationSeconds,
         )
         self.db.add(dream)
+        
+        # Update user dreams_count
+        user = self.db.get(User, self.user_id)
+        if user:
+            user.dreams_count = (user.dreams_count or 0) + 1
+            self.db.add(user)
+            
         self.db.commit()
         self.db.refresh(dream)
         return dream
@@ -127,6 +134,13 @@ class DreamService:
     def delete_dream(self, dream_id: str) -> None:
         dream = self.get_dream_or_404(dream_id)
         self.db.delete(dream)
+        
+        # Update user dreams_count
+        user = self.db.get(User, self.user_id)
+        if user:
+            user.dreams_count = max(0, (user.dreams_count or 1) - 1)
+            self.db.add(user)
+            
         self.db.commit()
 
     def batch_delete_dreams(self, dream_ids: list[str]) -> int:
@@ -137,6 +151,14 @@ class DreamService:
         dreams = list(self.db.scalars(stmt).all())
         for dream in dreams:
             self.db.delete(dream)
+            
+        # Update user dreams_count
+        if dreams:
+            user = self.db.get(User, self.user_id)
+            if user:
+                user.dreams_count = max(0, (user.dreams_count or 0) - len(dreams))
+                self.db.add(user)
+                
         self.db.commit()
         return len(dreams)
 

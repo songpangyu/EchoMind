@@ -479,9 +479,13 @@ export const CommunityScreen: React.FC = () => {
 
               <View style={styles.commentInputRow}>
                 <View style={styles.avatarSmall}>
-                  <Text style={styles.avatarTextSmall}>
-                    {user?.display_name?.charAt(0)?.toUpperCase() ?? '?'}
-                  </Text>
+                  {user?.avatar_url ? (
+                    <Image source={{ uri: user.avatar_url }} style={styles.avatarImgSmall} />
+                  ) : (
+                    <Text style={styles.avatarTextSmall}>
+                      {user?.display_name?.charAt(0)?.toUpperCase() ?? '?'}
+                    </Text>
+                  )}
                 </View>
                 <TextInput
                   style={styles.commentInput}
