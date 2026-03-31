@@ -151,7 +151,7 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
   const [generatedStyleId, setGeneratedStyleId] = useState<string | null>(null);
   const [imageErrorMessage, setImageErrorMessage] = useState<string | null>(null);
   const [aiAutoFilling, setAiAutoFilling] = useState(false);
-  const [imageStyleId, setImageStyleId] = useState('realistic');
+  const [imageStyleId, setImageStyleId] = useState('anime');
   const [styleDropdownOpen, setStyleDropdownOpen] = useState(false);
   const [draftDreamId, setDraftDreamId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -890,7 +890,12 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
                   {/* Tags */}
                   <Text style={styles.detailLabel}>Tags</Text>
                   <Text style={styles.sectionHint}>Quick Tags</Text>
-                  <View style={styles.tagRow}>
+                  <ScrollView 
+                    horizontal 
+                    showsHorizontalScrollIndicator={false} 
+                    contentContainerStyle={styles.tagScrollContainer}
+                    style={{ marginBottom: spacing.lg }}
+                  >
                     {QUICK_TAGS.map(tag => (
                       <TouchableOpacity
                         key={tag}
@@ -902,12 +907,17 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
                         </Text>
                       </TouchableOpacity>
                     ))}
-                  </View>
+                  </ScrollView>
 
                   {aiSuggestedTags.length > 0 && (
                     <>
                       <Text style={styles.sectionHint}>AI Suggested Tags</Text>
-                      <View style={styles.tagRow}>
+                      <ScrollView 
+                        horizontal 
+                        showsHorizontalScrollIndicator={false} 
+                        contentContainerStyle={styles.tagScrollContainer}
+                        style={{ marginBottom: spacing.lg }}
+                      >
                         {aiSuggestedTags.map(tag => (
                           <TouchableOpacity
                             key={`ai-${tag}`}
@@ -915,11 +925,11 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
                             onPress={() => toggleTag(tag)}
                           >
                             <Text style={[styles.tagText, styles.aiTagText, selectedTags.includes(tag) && styles.tagTextActive]}>
-                              {tag}
+                              <Icon name="sparkles" size={12} color={selectedTags.includes(tag) ? '#0F172A' : colors.textPrimary} /> {tag}
                             </Text>
                           </TouchableOpacity>
                         ))}
-                      </View>
+                      </ScrollView>
                     </>
                   )}
 
@@ -1265,6 +1275,7 @@ const styles = StyleSheet.create({
   moodLabel: { ...typography.small, color: colors.textTertiary, marginTop: 4 },
   moodLabelActive: { color: colors.mintGreen, fontWeight: '700' as const },
 
+  tagScrollContainer: { flexDirection: 'row', gap: spacing.sm },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg },
   tag: {
     paddingHorizontal: spacing.md, paddingVertical: 6,
