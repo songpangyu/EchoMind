@@ -581,7 +581,7 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
     setGeneratedStyleId(null);
     setImageErrorMessage(null);
     setAiAutoFilling(false);
-    setImageStyleId('realistic');
+    setImageStyleId('anime');
     setStyleDropdownOpen(false);
     setDraftDreamId(null);
     setErrorMessage(null);

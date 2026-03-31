@@ -92,11 +92,37 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
     if (__DEV__) {
       console.log('[apiRequest]', requestInit.method ?? 'GET', url);
+      console.log('[apiRequest:token]', token ? `${token.substring(0, 20)}...` : 'NO TOKEN');
+      console.log('[apiRequest:headers]', JSON.stringify(requestInit.headers));
     }
 
     const response = await fetch(url, requestInit);
+
+    if (__DEV__) {
+      console.log('[apiRequest:response]', response.status, response.statusText);
+    }
+
     const text = await response.text();
-    const data = text ? JSON.parse(text) : null;
+
+    if (__DEV__) {
+      console.log('[apiRequest:responseText]', text.substring(0, 200));
+    }
+
+    let data = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch (parseError) {
+      if (__DEV__) {
+        console.log('[apiRequest:parseError]', parseError);
+      }
+      // HTML error page from Cloudflare/Nginx
+      if (!response.ok) {
+        const err = new Error(`Request failed with status ${response.status}`) as Error & { status?: number };
+        err.status = response.status;
+        throw err;
+      }
+      throw parseError;
+    }
 
     if (!response.ok) {
       const detail = data?.detail || `Request failed with status ${response.status}`;

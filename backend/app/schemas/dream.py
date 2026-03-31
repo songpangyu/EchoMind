@@ -9,8 +9,8 @@ SourceType = Literal["voice", "text"]
 DreamStatus = Literal["draft", "completed"]
 JobStatus = Literal["idle", "processing", "completed", "failed"]
 ImageStyle = Literal[
-    "realistic",
     "3d-cartoon",
+    "realistic",
     "anime",
     "watercolor",
     "oil-paint",

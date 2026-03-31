@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import json
+import logging
+import random
 from dataclasses import dataclass
 from textwrap import shorten
+from urllib.parse import quote
 
 import httpx
 
@@ -141,10 +144,10 @@ class AIService:
         prompt = (
             "You are an expert dream analyst. Analyze the following summary of the user's recent dreams and provide a single cohesive insight.\n\n"
             "Return ONLY a pure JSON object with the following structure:\n"
-            "  - 'insightText': A paragraph (2-3 sentences) analyzing their recent patterns, emotions, and overarching themes. Give them gentle advice.\n"
+            "  - 'insightText': EXTREMELY BRIEF (maximum 2-3 short sentences, under 40 words total). Provide the core theme and one piece of gentle advice. Do not over-explain or ramble.\n"
             "  - 'symbols': An array of up to 3 major symbols identified from these dreams. Each item must have:\n"
             "      - 'icon': a single emoji representing the symbol.\n"
-            "      - 'text': a short phrase like 'Nature = Freedom' or 'Water = Emotion'.\n\n"
+            "      - 'text': a short, punchy phrase maximum 3-4 words (e.g., 'Anxiety & control', 'Comfort & trust'). Avoid the word '='.\n\n"
             "Ensure the output is strictly valid JSON."
         )
         
@@ -168,9 +171,17 @@ class AIService:
     def generate_image(self, *, dream, payload: GenerateDreamImageRequest) -> GeneratedImage:
         if not self.settings.ai_image_enabled:
             raise AIServiceNotConfiguredError("AI image service is not configured.")
+        if "pollinations.ai" in self.settings.ai_image_base_url:
+            print("🚀 [AI_SERVICE] Generating AI image using source: Pollinations.ai", flush=True)
+            return self._generate_pollinations_image(dream=dream, payload=payload)
         if "huggingface.co" in self.settings.ai_image_base_url:
+            print("🚀 [AI_SERVICE] Generating AI image using source: HuggingFace API", flush=True)
             return self._generate_huggingface_image(dream=dream, payload=payload)
+        if "volces.com" in self.settings.ai_image_base_url:
+            print("🚀 [AI_SERVICE] Generating AI image using source: Doubao (Volcengine) API", flush=True)
+            return self._generate_doubao_image(dream=dream, payload=payload)
 
+        print(f"🚀 [AI_SERVICE] Generating AI image using default API source: {self.settings.ai_image_base_url}", flush=True)
         image_url = self._generate_grok_image_url(dream=dream, payload=payload)
         return GeneratedImage(content=image_url.encode("utf-8"), mime_type="text/uri-list")
 
@@ -209,6 +220,67 @@ class AIService:
             raise AIServiceRequestError("AI image service did not return an image URL.")
         return image_url or image_b64
 
+    def _generate_doubao_image(self, *, dream, payload: GenerateDreamImageRequest) -> GeneratedImage:
+        """Generate image via ByteDance Ark (Doubao) API. Returns a URL directly."""
+        prompt = self._generate_optimized_image_prompt(
+            style=payload.style,
+            transcript=dream.transcript,
+            title=dream.title,
+            mood=dream.mood,
+            tags=dream.tags_json or [],
+        )
+        url = f"{self.settings.ai_image_base_url.rstrip('/')}/api/v3/images/generations"
+        response_data = self._post_json(
+            base_url=self.settings.ai_image_base_url,
+            api_key=self.settings.ai_image_api_key,
+            path="/api/v3/images/generations",
+            payload={
+                "model": self.settings.ai_image_model,
+                "prompt": prompt,
+                "size": "1024x1024",
+                "response_format": "url",
+                "watermark": False,
+            },
+        )
+        data = (response_data.get("data") or [{}])[0]
+        image_url = data.get("url")
+        if not image_url:
+            raise AIServiceRequestError("Doubao image API did not return an image URL.")
+        return GeneratedImage(content=image_url.encode("utf-8"), mime_type="text/uri-list")
+
+    def _generate_pollinations_image(self, *, dream, payload: GenerateDreamImageRequest) -> GeneratedImage:
+        """Generate image via Pollinations.ai (free, no API key required)."""
+        prompt = self._generate_optimized_image_prompt(
+            style=payload.style,
+            transcript=dream.transcript,
+            title=dream.title,
+            mood=dream.mood,
+            tags=dream.tags_json or [],
+        )
+        seed = random.randint(1, 999999)
+        encoded_prompt = quote(prompt)
+        url = (
+            f"https://image.pollinations.ai/prompt/{encoded_prompt}"
+            f"?width=1024&height=768&model=flux&nologo=true&seed={seed}"
+        )
+        try:
+            with httpx.Client(timeout=120) as client:
+                response = client.get(url, follow_redirects=True)
+                response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            raise AIServiceRequestError(
+                f"Pollinations image service failed with status {exc.response.status_code}: {exc.response.text[:300]}"
+            ) from exc
+        except httpx.HTTPError as exc:
+            raise AIServiceRequestError(f"Pollinations image service request failed: {exc}") from exc
+
+        content_type = response.headers.get("content-type", "image/jpeg")
+        if not content_type.startswith("image/"):
+            raise AIServiceRequestError(
+                f"Pollinations returned unexpected content type '{content_type}': {response.text[:200]}"
+            )
+        return GeneratedImage(content=response.content, mime_type=content_type.split(";")[0].strip())
+
     def _generate_huggingface_image(self, *, dream, payload: GenerateDreamImageRequest) -> GeneratedImage:
         prompt = self._generate_optimized_image_prompt(
             style=payload.style,
@@ -223,8 +295,8 @@ class AIService:
             payload={
                 "inputs": prompt,
                 "parameters": {
-                    "width": 1536,
-                    "height": 1024,
+                    "width": 1024,
+                    "height": 768,
                     "num_inference_steps": 4,
                     "guidance_scale": 3.5,
                 },

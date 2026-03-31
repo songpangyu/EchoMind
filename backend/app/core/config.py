@@ -77,7 +77,8 @@ class Settings(BaseSettings):
 
     @property
     def ai_image_enabled(self) -> bool:
-        return bool(self.ai_image_api_key and self.ai_image_base_url and self.ai_image_model)
+        # api_key is optional (e.g. Pollinations.ai requires no key)
+        return bool(self.ai_image_base_url and self.ai_image_model)
 
     @property
     def generated_media_path(self) -> Path:

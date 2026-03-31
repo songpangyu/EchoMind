@@ -55,8 +55,8 @@ const MOOD_META: Record<DreamMood, { emoji: string; label: string }> = {
 };
 
 const IMAGE_STYLE_LABELS: Record<string, string> = {
-    realistic: 'Realistic',
     '3d-cartoon': '3D Cartoon',
+    realistic: 'Realistic',
     anime: 'Anime / Manga',
     watercolor: 'Watercolor',
     'oil-paint': 'Oil Painting',
