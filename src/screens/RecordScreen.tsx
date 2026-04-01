@@ -294,7 +294,7 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
 
   const startRecording = async (options?: { resume?: boolean }) => {
     const isResume = options?.resume === true;
-    ReactNativeHapticFeedback.trigger('impactMedium');
+    ReactNativeHapticFeedback.trigger('impactHeavy');
     try {
       setErrorMessage(null);
       setSpeechStatusText('Checking speech recognition…');
@@ -337,7 +337,7 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
   };
 
   const pauseRecording = async () => {
-    ReactNativeHapticFeedback.trigger('impactMedium');
+    ReactNativeHapticFeedback.trigger('impactHeavy');
     try {
       pendingStopActionRef.current = 'pause';
       stopTimer();
@@ -381,7 +381,7 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
   };
 
   const resumeRecording = async () => {
-    ReactNativeHapticFeedback.trigger('impactMedium');
+    ReactNativeHapticFeedback.trigger('impactHeavy');
     await startRecording({ resume: true });
   };
 
