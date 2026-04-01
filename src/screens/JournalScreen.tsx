@@ -90,13 +90,18 @@ const getIconForDream = (dream: Dream): IconName => {
 
 const toDreamEntry = (dream: Dream): DreamEntry => {
   const createdAt = new Date(dream.createdAt);
+  // Use local timezone consistently for all date fields
+  const localYear = createdAt.getFullYear();
+  const localMonth = createdAt.getMonth() + 1;
+  const localDay = createdAt.getDate();
+  const localDateStr = `${localYear}-${String(localMonth).padStart(2, '0')}-${String(localDay).padStart(2, '0')}`;
   return {
     id: dream.id,
     title: dream.title || 'Untitled Dream',
-    date: createdAt.toISOString().slice(0, 10),
-    day: createdAt.getDate(),
-    month: createdAt.getMonth() + 1,
-    year: createdAt.getFullYear(),
+    date: localDateStr,
+    day: localDay,
+    month: localMonth,
+    year: localYear,
     recordedTime: createdAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
     snippet: dream.transcript,
     tags: dream.tags.map(label => ({ label })),
@@ -197,6 +202,16 @@ export const JournalScreen: React.FC = () => {
     }
     return result;
   }, [dreamsByDay, monthYear, daysInMonth]);
+
+  // Auto-select the most recent day with dreams when entering calendar or switching months
+  useEffect(() => {
+    if (viewMode === 'calendar' && selectedDay === null && !loading) {
+      const days = Object.keys(dreamsByDay).map(Number);
+      if (days.length > 0) {
+        setSelectedDay(Math.max(...days));
+      }
+    }
+  }, [viewMode, dreamsByDay, loading, selectedDay]);
 
   const bestStreak = useMemo(() => {
     let best = 0, cur = 0;
@@ -414,13 +429,13 @@ export const JournalScreen: React.FC = () => {
 
   // ── Highlight search match ──
   const highlight = (text: string, query: string) => {
-    if (!query.trim()) return <Text style={styles.dreamSnippet}>{text}</Text>;
+    if (!query.trim()) return <Text style={styles.dreamSnippet} numberOfLines={3}>{text}</Text>;
     const lower = text.toLowerCase();
     const q = query.toLowerCase();
     const idx = lower.indexOf(q);
-    if (idx === -1) return <Text style={styles.dreamSnippet}>{text}</Text>;
+    if (idx === -1) return <Text style={styles.dreamSnippet} numberOfLines={3}>{text}</Text>;
     return (
-      <Text style={styles.dreamSnippet}>
+      <Text style={styles.dreamSnippet} numberOfLines={3}>
         {text.slice(0, idx)}
         <Text style={styles.highlight}>{text.slice(idx, idx + q.length)}</Text>
         {text.slice(idx + q.length)}
