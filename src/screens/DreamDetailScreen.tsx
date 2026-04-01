@@ -140,7 +140,6 @@ export const DreamDetailScreen: React.FC = () => {
     const [analysisLoading, setAnalysisLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [updatingFavorite, setUpdatingFavorite] = useState(false);
-    ReactNativeHapticFeedback.trigger('impactHeavy');
     // Toast
     const [toastMsg, setToastMsg] = useState('');
     const toastAnim = useRef(new Animated.Value(0)).current;
@@ -405,7 +404,10 @@ export const DreamDetailScreen: React.FC = () => {
                                 <TouchableOpacity
                                     key={p.key}
                                     style={[styles.perspectiveBtn, perspective === p.key && styles.perspectiveBtnActive]}
-                                    onPress={() => setPerspective(p.key)}
+                                    onPress={() => {
+                                        ReactNativeHapticFeedback.trigger('impactLight');
+                                        setPerspective(p.key);
+                                    }}
                                 >
                                     <Icon name={p.icon} size={28} color={perspective === p.key ? colors.mintGreen : colors.textTertiary} />
                                     <Text style={[styles.perspectiveLabel, perspective === p.key && styles.perspectiveLabelActive]}>
