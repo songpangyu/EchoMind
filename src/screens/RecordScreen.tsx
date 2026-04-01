@@ -13,6 +13,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/types';
@@ -136,6 +137,44 @@ const joinTranscriptParts = (...parts: string[]) =>
 const resolveTranscriptSnapshot = (combinedTranscript: string, accumulatedTranscript: string, liveTranscript: string) =>
   combinedTranscript.trim() || joinTranscriptParts(accumulatedTranscript, liveTranscript);
 
+// ── Animated pulse dot for AI loading ──
+const AiPulseDot: React.FC<{ delay: number }> = ({ delay }) => {
+  const opacity = useRef(new RNAnimated.Value(0.3)).current;
+  const scaleVal = useRef(new RNAnimated.Value(0.6)).current;
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      RNAnimated.loop(
+        RNAnimated.sequence([
+          RNAnimated.parallel([
+            RNAnimated.timing(opacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+            RNAnimated.timing(scaleVal, { toValue: 1.2, duration: 500, useNativeDriver: true }),
+          ]),
+          RNAnimated.parallel([
+            RNAnimated.timing(opacity, { toValue: 0.3, duration: 500, useNativeDriver: true }),
+            RNAnimated.timing(scaleVal, { toValue: 0.6, duration: 500, useNativeDriver: true }),
+          ]),
+        ])
+      ).start();
+    }, delay);
+    return () => clearTimeout(timeout);
+  }, [delay, opacity, scaleVal]);
+
+  return (
+    <RNAnimated.View
+      style={{
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: colors.mintGreen,
+        opacity,
+        transform: [{ scale: scaleVal }],
+        marginHorizontal: 2,
+      }}
+    />
+  );
+};
+
 export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const [mode, setMode] = useState<InputMode>('voice');
@@ -253,6 +292,7 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
 
   const startRecording = async (options?: { resume?: boolean }) => {
     const isResume = options?.resume === true;
+    ReactNativeHapticFeedback.trigger('impactMedium');
     try {
       setErrorMessage(null);
       setSpeechStatusText('Checking speech recognition…');
@@ -295,6 +335,7 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
   };
 
   const pauseRecording = async () => {
+    ReactNativeHapticFeedback.trigger('impactLight');
     try {
       pendingStopActionRef.current = 'pause';
       stopTimer();
@@ -321,6 +362,7 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
   };
 
   const finishRecording = async () => {
+    ReactNativeHapticFeedback.trigger('notificationSuccess');
     if (recordStateRef.current === 'paused') {
       finalizeRecording();
       return;
@@ -337,6 +379,7 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
   };
 
   const resumeRecording = async () => {
+    ReactNativeHapticFeedback.trigger('impactMedium');
     await startRecording({ resume: true });
   };
 
@@ -618,6 +661,7 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
       setGeneratedImageUri(result.aiImageUrl);
       setGeneratedStyleId(result.aiImageStyle ?? styleId);
       setImageGenState('done');
+      ReactNativeHapticFeedback.trigger('notificationSuccess');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'AI image generation failed.';
       setImageGenState(generatedImageUri ? 'done' : 'idle');
@@ -855,10 +899,32 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
                     onPress={handleAiAutoFill}
                     disabled={aiAutoFilling}
                   >
-                    <Text style={styles.aiBadgeLabel}>
-                      {aiAutoFilling ? '⏳ Filling...' : '⚡ AI Auto Fill'}
-                    </Text>
+                    {aiAutoFilling ? (
+                      <View style={styles.aiDotsRow}>
+                        <RNAnimated.View style={[styles.aiDot, styles.aiDot1]} />
+                        <RNAnimated.View style={[styles.aiDot, styles.aiDot2]} />
+                        <RNAnimated.View style={[styles.aiDot, styles.aiDot3]} />
+                        <Text style={[styles.aiBadgeLabel, { marginLeft: 4 }]}>AI Working...</Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.aiBadgeLabel}>⚡ AI Auto Fill</Text>
+                    )}
                   </TouchableOpacity>
+
+                  {/* AI Loading Overlay */}
+                  {aiAutoFilling && (
+                    <View style={styles.aiOverlay}>
+                      <View style={styles.aiOverlayInner}>
+                        <View style={styles.aiPulseDotsRow}>
+                          {[0, 1, 2, 3, 4].map(i => (
+                            <AiPulseDot key={i} delay={i * 150} />
+                          ))}
+                        </View>
+                        <Text style={styles.aiOverlayText}>AI is filling your title and tags...</Text>
+                        <Text style={styles.aiOverlaySubtext}>Generating title, mood & tags</Text>
+                      </View>
+                    </View>
+                  )}
 
                   {/* Title */}
                   <Text style={styles.detailLabel}>Dream Title</Text>
@@ -890,9 +956,9 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
                   {/* Tags */}
                   <Text style={styles.detailLabel}>Tags</Text>
                   <Text style={styles.sectionHint}>Quick Tags</Text>
-                  <ScrollView 
-                    horizontal 
-                    showsHorizontalScrollIndicator={false} 
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.tagScrollContainer}
                     style={{ marginBottom: spacing.lg }}
                   >
@@ -912,9 +978,9 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
                   {aiSuggestedTags.length > 0 && (
                     <>
                       <Text style={styles.sectionHint}>AI Suggested Tags</Text>
-                      <ScrollView 
-                        horizontal 
-                        showsHorizontalScrollIndicator={false} 
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
                         contentContainerStyle={styles.tagScrollContainer}
                         style={{ marginBottom: spacing.lg }}
                       >
@@ -1328,9 +1394,45 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
   },
-  aiBadgeBtnLoading: { opacity: 0.65 },
+  aiBadgeBtnLoading: { opacity: 0.85, borderColor: '#66d4aa' },
   aiBadgeText: { fontSize: 13 },
   aiBadgeLabel: { fontSize: 11, color: colors.mintGreen, fontWeight: '700', letterSpacing: 0.3 },
+  aiDotsRow: { flexDirection: 'row', alignItems: 'center' },
+  aiDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: colors.mintGreen, marginHorizontal: 1 },
+  aiDot1: { opacity: 1 },
+  aiDot2: { opacity: 0.7 },
+  aiDot3: { opacity: 0.4 },
+  aiOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(10, 30, 25, 0.88)',
+    borderRadius: borderRadius.lg,
+    zIndex: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  aiOverlayInner: {
+    alignItems: 'center',
+    gap: 12,
+  },
+  aiPulseDotsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  aiOverlayText: {
+    ...typography.body,
+    color: colors.mintGreen,
+    fontWeight: '600',
+    fontSize: 15,
+    letterSpacing: 0.3,
+  },
+  aiOverlaySubtext: {
+    ...typography.small,
+    color: colors.textTertiary,
+    fontSize: 12,
+  },
 
   imageSectionIntro: {
     marginBottom: spacing.sm,

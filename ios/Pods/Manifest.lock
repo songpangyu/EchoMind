@@ -1233,6 +1233,27 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
+  - RNReactNativeHapticFeedback (3.0.0):
+    - DoubleConversion
+    - glog
+    - hermes-engine
+    - RCT-Folly (= 2024.01.01.00)
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Codegen
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-rendererdebug
+    - React-utils
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - Yoga
   - RNReanimated (3.9.0):
     - DoubleConversion
     - glog
@@ -1342,6 +1363,7 @@ DEPENDENCIES:
   - React-utils (from `../node_modules/react-native/ReactCommon/react/utils`)
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
   - RNGestureHandler (from `../node_modules/react-native-gesture-handler`)
+  - RNReactNativeHapticFeedback (from `../node_modules/react-native-haptic-feedback`)
   - RNReanimated (from `../node_modules/react-native-reanimated`)
   - RNScreens (from `../node_modules/react-native-screens`)
   - RNSVG (from `../node_modules/react-native-svg`)
@@ -1471,6 +1493,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon"
   RNGestureHandler:
     :path: "../node_modules/react-native-gesture-handler"
+  RNReactNativeHapticFeedback:
+    :path: "../node_modules/react-native-haptic-feedback"
   RNReanimated:
     :path: "../node_modules/react-native-reanimated"
   RNScreens:
@@ -1540,6 +1564,7 @@ SPEC CHECKSUMS:
   React-utils: 9fa4e5d0b5e6c6c85c958f19d6ef854337886417
   ReactCommon: 9f285823dbe955099978d9bff65a7653ca029256
   RNGestureHandler: c41ff309251968b4a42be43132c70410daa49189
+  RNReactNativeHapticFeedback: c118a475df6ff2826b0ec64522ad559deb884901
   RNReanimated: 0d6128149bf2099b797f473ff5720086bbcd3cc7
   RNScreens: 5d770465a09cbb7cf83e2ad43d6f049b52e62bad
   RNSVG: 6d5ed33b6635ed6d6ecb50744dcf127580c39ed5

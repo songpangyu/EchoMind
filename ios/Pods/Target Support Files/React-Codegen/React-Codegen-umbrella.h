@@ -39,6 +39,8 @@
 #import "react/renderer/components/safeareacontext/RCTComponentViewHelpers.h"
 #import "react/renderer/components/safeareacontext/ShadowNodes.h"
 #import "react/renderer/components/safeareacontext/States.h"
+#import "RNHapticFeedbackSpec/RNHapticFeedbackSpec.h"
+#import "RNHapticFeedbackSpecJSI.h"
 #import "RNImagePickerSpec/RNImagePickerSpec.h"
 #import "RNImagePickerSpecJSI.h"
 #import "rnreanimated/rnreanimated.h"
