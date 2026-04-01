@@ -12,6 +12,7 @@ import { RecordScreen } from '../screens/RecordScreen';
 import { colors } from '../theme';
 import { TabParamList } from './types';
 import Icon, { IconName } from '../components/Icon';
+import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 
 const Tab = createBottomTabNavigator<TabParamList>();
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -101,6 +102,7 @@ export const TabNavigator: React.FC = () => {
   const backdropAnim = useRef(new Animated.Value(0)).current;
 
   const openRecord = useCallback(() => {
+    ReactNativeHapticFeedback.trigger('impactMedium');
     setRecordOpen(true);
     Animated.parallel([
       Animated.spring(slideAnim, {
