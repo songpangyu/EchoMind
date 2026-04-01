@@ -19,6 +19,7 @@ import Icon, { IconName } from '../components/Icon';
 import { getDream, updateDream, analyzeDream, type Dream, type DreamMood } from '../api/dreams';
 import { sharePost } from '../api/community';
 import { ScreenWrapper } from '../components/ScreenWrapper';
+import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 
 // ─── Mock dream data (in real app these come from route params / store) ────────
 const DREAM = {
@@ -82,6 +83,54 @@ const formatDuration = (seconds: number | null) => {
     return `${mins}:${String(secs).padStart(2, '0')}`;
 };
 
+// ─── AI Analysis Skeleton Loader ─────────────────────────────────────────────
+const AnalysisLoadingSkeleton = () => {
+    const pulseAnim = useRef(new Animated.Value(0.3)).current;
+
+    useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+                Animated.timing(pulseAnim, { toValue: 0.3, duration: 800, useNativeDriver: true }),
+            ])
+        ).start();
+    }, [pulseAnim]);
+
+    return (
+        <View style={styles.skeletonContainer}>
+            {/* AI thinking indicator */}
+            <View style={styles.skeletonHeader}>
+                <Animated.View style={[styles.skeletonIcon, { opacity: pulseAnim }]} />
+                <Animated.Text style={[styles.skeletonLabel, { opacity: pulseAnim }]}>AI is decoding your dream...</Animated.Text>
+            </View>
+
+            {/* Skeleton paragraph lines */}
+            <View style={styles.skeletonBlock}>
+                <Animated.View style={[styles.skeletonLine, { width: '100%', opacity: pulseAnim }]} />
+                <Animated.View style={[styles.skeletonLine, { width: '90%', opacity: pulseAnim }]} />
+                <Animated.View style={[styles.skeletonLine, { width: '95%', opacity: pulseAnim }]} />
+                <Animated.View style={[styles.skeletonLine, { width: '70%', opacity: pulseAnim }]} />
+            </View>
+
+            {/* Skeleton bullet points */}
+            <View style={styles.skeletonBlock}>
+                <View style={styles.skeletonBulletRow}>
+                    <Animated.View style={[styles.skeletonBullet, { opacity: pulseAnim }]} />
+                    <Animated.View style={[styles.skeletonLine, { width: '85%', opacity: pulseAnim }]} />
+                </View>
+                <View style={styles.skeletonBulletRow}>
+                    <Animated.View style={[styles.skeletonBullet, { opacity: pulseAnim }]} />
+                    <Animated.View style={[styles.skeletonLine, { width: '90%', opacity: pulseAnim }]} />
+                </View>
+                <View style={styles.skeletonBulletRow}>
+                    <Animated.View style={[styles.skeletonBullet, { opacity: pulseAnim }]} />
+                    <Animated.View style={[styles.skeletonLine, { width: '60%', opacity: pulseAnim }]} />
+                </View>
+            </View>
+        </View>
+    );
+};
+
 export const DreamDetailScreen: React.FC = () => {
     const navigation = useNavigation<NavProp>();
     const route = useRoute<DreamDetailRoute>();
@@ -117,7 +166,7 @@ export const DreamDetailScreen: React.FC = () => {
                 const result = await getDream(route.params.dreamId);
                 if (active) {
                     setDream(result);
-                    if (!result.analysis) {
+                    if (!result.analysis || Object.keys(result.analysis).length === 0) {
                         setAnalysisLoading(true);
                         analyzeDream(result.id)
                             .then(updated => {
@@ -168,9 +217,11 @@ export const DreamDetailScreen: React.FC = () => {
 
     const shareToCommunity = async () => {
         if (!dream) return;
+        ReactNativeHapticFeedback.trigger('impactMedium');
         try {
             showToast('Sharing...');
             await sharePost(dream.id);
+            ReactNativeHapticFeedback.trigger('notificationSuccess');
             navigation.reset({
                 index: 0,
                 routes: [{ name: 'MainTabs', params: { screen: 'Community', params: { shared: true } } }],
@@ -368,15 +419,12 @@ export const DreamDetailScreen: React.FC = () => {
                         {/* Analysis content */}
                         <GlassCard style={styles.analysisCard}>
                             {analysisLoading ? (
-                                <View style={{ padding: spacing.xl, alignItems: 'center' }}>
-                                    <ActivityIndicator color={colors.mintGreen} size="large" />
-                                    <Text style={{ marginTop: spacing.md, color: colors.textSecondary, ...typography.body }}>AI is analyzing your dream...</Text>
-                                </View>
-                            ) : dream.analysis ? (
+                                <AnalysisLoadingSkeleton />
+                            ) : dream.analysis && Object.keys(dream.analysis).length > 0 ? (
                                 <>
-                                    <Text style={styles.analysisSummary}>{dream.analysis[perspective].summary}</Text>
+                                    <Text style={styles.analysisSummary}>{dream.analysis[perspective]?.summary}</Text>
                                     <Text style={styles.insightsTitle}>Key Insights</Text>
-                                    {dream.analysis[perspective].insights.map((insight, i) => (
+                                    {dream.analysis[perspective]?.insights?.map((insight, i) => (
                                         <View key={i} style={styles.insightRow}>
                                             <View style={styles.insightBullet} />
                                             <Text style={styles.insightText}>{insight}</Text>
@@ -384,7 +432,7 @@ export const DreamDetailScreen: React.FC = () => {
                                     ))}
                                     <View style={styles.suggestionBox}>
                                         <Text style={styles.suggestionLabel}>💡 Suggestion</Text>
-                                        <Text style={styles.suggestionText}>{dream.analysis[perspective].suggestion}</Text>
+                                        <Text style={styles.suggestionText}>{dream.analysis[perspective]?.suggestion}</Text>
                                     </View>
                                 </>
                             ) : (
@@ -539,6 +587,16 @@ const styles = StyleSheet.create({
         backgroundColor: colors.mintGreen, marginTop: 7, flexShrink: 0,
     },
     insightText: { ...typography.body, color: colors.textSecondary, lineHeight: 22, flex: 1 },
+
+    // Skeleton loader
+    skeletonContainer: { paddingVertical: spacing.sm },
+    skeletonHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.lg, gap: spacing.sm },
+    skeletonIcon: { width: 16, height: 16, borderRadius: 8, backgroundColor: colors.mintGreen },
+    skeletonLabel: { ...typography.body, color: colors.mintGreen, fontWeight: '600' },
+    skeletonBlock: { marginBottom: spacing.xl, gap: 10 },
+    skeletonLine: { height: 14, borderRadius: 7, backgroundColor: 'rgba(126, 200, 160, 0.2)' },
+    skeletonBulletRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    skeletonBullet: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(126, 200, 160, 0.4)' },
 
     // Suggestion
     suggestionBox: {

@@ -40,6 +40,7 @@ import {
   type DreamMood,
 } from '../api/dreams';
 import { ScreenWrapper } from '../components/ScreenWrapper';
+import { SuccessToast } from '../components/SuccessToast';
 
 const ART_STYLES: { id: string; label: string; icon: IconName; uri: string; hint: string }[] = [
   { id: 'anime', label: 'Anime / Manga', icon: 'flag', uri: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=600&h=400&fit=crop', hint: 'Bold framing, expressive linework, vivid dream energy.' },
@@ -197,6 +198,7 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
   const [speechAvailable, setSpeechAvailable] = useState<boolean | null>(null);
   const [speechStatusText, setSpeechStatusText] = useState('Tap to start live transcription');
   const [aiSuggestedTags, setAiSuggestedTags] = useState<string[]>([]);
+  const [showImageSuccessToast, setShowImageSuccessToast] = useState(false);
 
   const shimmerAnim = useRef(new RNAnimated.Value(0)).current;
   const shimmerLoopRef = useRef<RNAnimated.CompositeAnimation | null>(null);
@@ -335,7 +337,7 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
   };
 
   const pauseRecording = async () => {
-    ReactNativeHapticFeedback.trigger('impactLight');
+    ReactNativeHapticFeedback.trigger('impactMedium');
     try {
       pendingStopActionRef.current = 'pause';
       stopTimer();
@@ -520,6 +522,7 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
 
   const saveDream = async () => {
     if (isSaving) return;
+    ReactNativeHapticFeedback.trigger('notificationSuccess');
     try {
       setIsSaving(true);
       setErrorMessage(null);
@@ -662,6 +665,7 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
       setGeneratedStyleId(result.aiImageStyle ?? styleId);
       setImageGenState('done');
       ReactNativeHapticFeedback.trigger('notificationSuccess');
+      setShowImageSuccessToast(true);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'AI image generation failed.';
       setImageGenState(generatedImageUri ? 'done' : 'idle');
@@ -691,6 +695,16 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
       >
         <View style={styles.container}>
           <FloatingParticles />
+
+          {/* AI Image Success Toast */}
+          <SuccessToast
+            visible={showImageSuccessToast}
+            title="Image Generated!"
+            subtitle={`Style: ${generatedArtStyle?.label ?? 'AI'} Art`}
+            icon="✨"
+            duration={2500}
+            onHide={() => setShowImageSuccessToast(false)}
+          />
 
           {/* Save success toast */}
           <RNAnimated.View
@@ -753,7 +767,7 @@ export const RecordScreen: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
                     }
                     activeOpacity={0.85}
                     disabled={recordState === 'done'}
-                    hitSlop={{ top: 18, bottom: 18, left: 18, right: 18 }}
+                    hitSlop={{ top: 32, bottom: 32, left: 32, right: 32 }}
                   >
                     <Animated.View style={[styles.recordRing, pulseBtnStyle,
                     recordState === 'recording' && styles.recordRingActive]}>
