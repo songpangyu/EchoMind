@@ -140,12 +140,11 @@ export const DreamDetailScreen: React.FC = () => {
     const [analysisLoading, setAnalysisLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [updatingFavorite, setUpdatingFavorite] = useState(false);
-
+    ReactNativeHapticFeedback.trigger('impactHeavy');
     // Toast
     const [toastMsg, setToastMsg] = useState('');
     const toastAnim = useRef(new Animated.Value(0)).current;
     const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
     const showToast = useCallback((msg: string) => {
         if (toastTimer.current) clearTimeout(toastTimer.current);
         setToastMsg(msg);
