@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { ActivityIndicator, StatusBar, View, LogBox } from 'react-native';
+import { ActivityIndicator, StatusBar, View, LogBox, Text } from 'react-native';
 
 LogBox.ignoreLogs([
   'Sending `onAnimatedValueUpdate` with no listeners registered'
@@ -37,6 +37,25 @@ function AuthNavigator() {
 
 // Main app navigator
 function AppNavigator() {
+  const missing = [];
+  if (!TabNavigator) missing.push("TabNavigator");
+  if (!DreamDetailScreen) missing.push("DreamDetailScreen");
+  if (!CommunityProfileScreen) missing.push("CommunityProfileScreen");
+  if (!CommunityPostDetailScreen) missing.push("CommunityPostDetailScreen");
+  if (!NotificationsScreen) missing.push("NotificationsScreen");
+  if (!SavedDreamsScreen) missing.push("SavedDreamsScreen");
+  if (!EditProfileScreen) missing.push("EditProfileScreen");
+  if (!PrivacyScreen) missing.push("PrivacyScreen");
+  if (!HelpSupportScreen) missing.push("HelpSupportScreen");
+
+  if (missing.length > 0) {
+    return (
+      <View style={{ flex: 1, backgroundColor: 'red', justifyContent: 'center', alignItems: 'center' }}>
+        <Text style={{ color: 'white', fontSize: 20 }}>Missing modules: {missing.join(', ')}</Text>
+      </View>
+    );
+  }
+
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="MainTabs" component={TabNavigator} />
