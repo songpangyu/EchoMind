@@ -20,22 +20,6 @@ struct Dream: Codable, Identifiable {
     let isFavorited: Bool
     let createdAt: String
     let updatedAt: String
-
-    enum CodingKeys: String, CodingKey {
-        case id
-        case userId = "user_id"
-        case sourceType = "source_type"
-        case status, title, transcript, mood, tags
-        case audioUrl = "audio_url"
-        case durationSeconds = "duration_seconds"
-        case aiImageUrl = "ai_image_url"
-        case aiImageStyle = "ai_image_style"
-        case aiAutofillStatus = "ai_autofill_status"
-        case aiImageStatus = "ai_image_status"
-        case isFavorited = "is_favorited"
-        case createdAt = "created_at"
-        case updatedAt = "updated_at"
-    }
 }
 
 // MARK: - Autofill Response
@@ -58,13 +42,6 @@ struct CreateDreamPayload: Encodable {
     var tags: [String]?
     var durationSeconds: Int?
     var status: String = "draft"
-
-    enum CodingKeys: String, CodingKey {
-        case sourceType = "source_type"
-        case transcript, title, mood, tags
-        case durationSeconds = "duration_seconds"
-        case status
-    }
 }
 
 struct UpdateDreamPayload: Encodable {

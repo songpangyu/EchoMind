@@ -1,14 +1,16 @@
 import SwiftUI
+import WatchKit
 import Combine
 
 struct ContentView: View {
     @EnvironmentObject var authSync: AuthSync
     @StateObject private var recorder = AudioRecorder()
     @State private var currentScreen: WatchScreen = .idle
+    @State private var showingTextInput = false
+    @State private var dictationText = ""
 
     enum WatchScreen {
         case idle
-        case voiceInput
         case confirm
         case generating
     }
@@ -24,16 +26,17 @@ struct ContentView: View {
                 switch currentScreen {
                 case .idle:
                     IdleView(onStart: {
-                        currentScreen = .voiceInput
+                        dictationText = ""
+                        showingTextInput = true
                     })
-
-                case .voiceInput:
-                    VoiceInputView(onComplete: { text in
-                        recorder.transcript = text
-                        currentScreen = .confirm
-                    }, onCancel: {
-                        currentScreen = .idle
-                    })
+                    .sheet(isPresented: $showingTextInput) {
+                        DictationSheetView(text: $dictationText, isPresented: $showingTextInput) {
+                            if !dictationText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                recorder.transcript = dictationText
+                                currentScreen = .confirm
+                            }
+                        }
+                    }
 
                 case .confirm:
                     ConfirmView(
@@ -42,6 +45,11 @@ struct ContentView: View {
                         onReRecord: {
                             recorder.reset()
                             currentScreen = .idle
+                            // Small delay then re-open dictation
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                dictationText = ""
+                                showingTextInput = true
+                            }
                         },
                         onGenerate: {
                             currentScreen = .generating
@@ -63,50 +71,34 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Voice Input View
-// On real Apple Watch: TextField auto-opens dictation (full-screen mic + waveform)
-// On Simulator: shows keyboard (simulator has no mic)
+// MARK: - Dictation Sheet (auto-focuses TextField to trigger system dictation)
 
-struct VoiceInputView: View {
-    let onComplete: (String) -> Void
-    let onCancel: () -> Void
-
-    @State private var inputText = ""
+struct DictationSheetView: View {
+    @Binding var text: String
+    @Binding var isPresented: Bool
+    let onDone: () -> Void
     @FocusState private var isFocused: Bool
 
     var body: some View {
         VStack(spacing: 8) {
-            HStack {
-                Button(action: onCancel) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(.echoTextTertiary)
-                }
-                .buttonStyle(.plain)
-                .frame(width: 30, height: 30)
+            Text("🌙 Describe your dream")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundColor(.echoMintGreen)
 
-                Spacer()
-
-                Text("🌙 Speak")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(.echoMintGreen)
-
-                Spacer()
-                Spacer().frame(width: 30)
-            }
-
-            // This TextField auto-opens system dictation on real Apple Watch
-            TextField("Tap to speak...", text: $inputText, axis: .vertical)
+            TextField("Tap mic to speak...", text: $text, axis: .vertical)
                 .font(.system(size: 13))
-                .lineLimit(3...10)
+                .lineLimit(2...8)
                 .padding(8)
                 .background(Color.echoSurface)
                 .cornerRadius(8)
                 .focused($isFocused)
 
-            if !inputText.isEmpty {
+            if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 Button(action: {
-                    onComplete(inputText)
+                    isPresented = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        onDone()
+                    }
                 }) {
                     HStack(spacing: 4) {
                         Image(systemName: "sparkles")
@@ -124,10 +116,9 @@ struct VoiceInputView: View {
             }
         }
         .padding(.horizontal, 4)
-        .background(Color.echoBackground)
         .onAppear {
-            // Auto-focus triggers system dictation on real device
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            // Auto-focus → on real Watch this opens system dictation immediately
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 isFocused = true
             }
         }

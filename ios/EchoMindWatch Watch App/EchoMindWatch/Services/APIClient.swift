@@ -65,6 +65,13 @@ actor APIClient {
         return try await post("/dreams/\(dreamId)/ai-image", body: payload)
     }
 
+    /// POST /dreams/{id}/analyze — trigger AI dream analysis
+    func analyzeDream(dreamId: String) async throws -> Dream {
+        // Analyze endpoint takes no body, send empty dict
+        let empty: [String: String] = [:]
+        return try await post("/dreams/\(dreamId)/analyze", body: empty)
+    }
+
     // MARK: - HTTP Helpers
 
     private func post<T: Decodable, B: Encodable>(_ path: String, body: B) async throws -> T {

@@ -13,7 +13,7 @@ import {
   Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { GlassCard } from '../components/GlassCard';
 import { FloatingParticles } from '../components/FloatingParticles';
@@ -140,6 +140,13 @@ export const JournalScreen: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [starredIds, setStarredIds] = useState<Set<string>>(new Set());
   const [reloadKey, setReloadKey] = useState(0);
+
+  // Refresh data every time the Journal tab gains focus
+  useFocusEffect(
+    useCallback(() => {
+      setReloadKey(k => k + 1);
+    }, [])
+  );
 
   const monthLabel = getMonthLabel(monthYear.year, monthYear.month);
   const startDay = new Date(monthYear.year, monthYear.month - 1, 1).getDay();
@@ -701,7 +708,7 @@ export const JournalScreen: React.FC = () => {
                 viewMode === mode && styles.toggleBtnActive,
                 { flexDirection: 'row', justifyContent: 'center', gap: 6 }
               ]}
-              onPress={() => { setViewMode(mode); setSelectedDay(null); }}
+              onPress={() => { setViewMode(mode); setSelectedDay(null); setReloadKey(k => k + 1); }}
               activeOpacity={0.7}
             >
               <Icon

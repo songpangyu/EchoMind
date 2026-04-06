@@ -1,4 +1,5 @@
 import SwiftUI
+import WatchKit
 
 /// AI processing view that orchestrates the 4-step dream generation pipeline,
 /// then displays the result (image + title + mood).
@@ -10,7 +11,8 @@ struct GeneratingView: View {
     @State private var currentStep: GenerationStep = .analyzing
     @State private var error: String?
     @State private var result: DreamResult?
-    @State private var pulseScale: CGFloat = 1.0
+    @State private var spinAngle: Double = 0
+    @State private var showResult = false
 
     enum GenerationStep: Int, CaseIterable {
         case analyzing = 0      // POST /ai/autofill
@@ -21,10 +23,10 @@ struct GeneratingView: View {
 
         var label: String {
             switch self {
-            case .analyzing:  return "Reading your dream..."
-            case .saving:     return "Saving draft..."
-            case .painting:   return "Painting your dream..."
-            case .completing: return "Almost done..."
+            case .analyzing:  return "Reading dream"
+            case .saving:     return "Saving draft"
+            case .painting:   return "Painting dream"
+            case .completing: return "Finishing up"
             case .done:       return "Dream saved!"
             }
         }
@@ -48,6 +50,11 @@ struct GeneratingView: View {
             case .done:       return "✅"
             }
         }
+
+        /// All processing steps (excluding .done)
+        static var processingSteps: [GenerationStep] {
+            [.analyzing, .saving, .painting, .completing]
+        }
     }
 
     struct DreamResult {
@@ -61,13 +68,10 @@ struct GeneratingView: View {
         ScrollView {
             VStack(spacing: 10) {
                 if let error = error {
-                    // Error state
                     errorView(error)
                 } else if let result = result, currentStep == .done {
-                    // Success result
                     resultView(result)
                 } else {
-                    // Loading / generating
                     loadingView
                 }
             }
@@ -77,53 +81,130 @@ struct GeneratingView: View {
         .task {
             await runPipeline()
         }
+        .onChange(of: currentStep) { newStep in
+            if newStep == .done {
+                // Strong haptic + sound on completion
+                WKInterfaceDevice.current().play(.success)
+            } else if newStep != .analyzing {
+                // Light tap when moving between steps
+                WKInterfaceDevice.current().play(.click)
+            }
+        }
     }
 
-    // MARK: - Loading View
+    // MARK: - Loading View (Step List)
 
     private var loadingView: some View {
-        VStack(spacing: 14) {
-            Spacer()
-
-            // Animated glow circle
+        VStack(spacing: 6) {
+            // Spinning ring at top
             ZStack {
+                // Outer glow ring
                 Circle()
-                    .stroke(Color.echoMintGreen.opacity(0.2), lineWidth: 3)
-                    .frame(width: 60, height: 60)
-                    .scaleEffect(pulseScale)
+                    .stroke(
+                        AngularGradient(
+                            gradient: Gradient(colors: [
+                                Color.echoMintGreen.opacity(0.0),
+                                Color.echoMintGreen.opacity(0.3),
+                                Color.echoMintGreen.opacity(0.8),
+                                Color.echoMintGreen,
+                                Color.echoMintGreen.opacity(0.0)
+                            ]),
+                            center: .center
+                        ),
+                        lineWidth: 3
+                    )
+                    .frame(width: 48, height: 48)
+                    .rotationEffect(.degrees(spinAngle))
 
+                // Center icon
                 Circle()
                     .fill(Color.echoDeepTeal)
-                    .frame(width: 50, height: 50)
+                    .frame(width: 38, height: 38)
 
                 Image(systemName: currentStep.icon)
-                    .font(.system(size: 22))
+                    .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(.echoMintGreen)
+                    .id(currentStep) // Force re-render on step change
+                    .transition(.scale.combined(with: .opacity))
             }
             .onAppear {
-                withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
-                    pulseScale = 1.2
+                withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
+                    spinAngle = 360
                 }
             }
+            .padding(.top, 4)
 
-            Text(currentStep.emoji + " " + currentStep.label)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(.echoTextPrimary)
-                .multilineTextAlignment(.center)
+            // Step list
+            VStack(spacing: 0) {
+                ForEach(GenerationStep.processingSteps, id: \.rawValue) { step in
+                    stepRow(step)
+                }
+            }
+            .padding(.horizontal, 2)
+            .padding(.vertical, 4)
+        }
+    }
+
+    private func stepRow(_ step: GenerationStep) -> some View {
+        let isCompleted = step.rawValue < currentStep.rawValue
+        let isCurrent = step.rawValue == currentStep.rawValue
+        let isPending = step.rawValue > currentStep.rawValue
+
+        return HStack(spacing: 8) {
+            // Status indicator
+            ZStack {
+                if isCompleted {
+                    // Checkmark for completed
+                    Circle()
+                        .fill(Color.echoMintGreen)
+                        .frame(width: 20, height: 20)
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.echoDeepTeal)
+                } else if isCurrent {
+                    // Pulsing dot for current
+                    Circle()
+                        .fill(Color.echoMintGreen.opacity(0.3))
+                        .frame(width: 20, height: 20)
+                    Circle()
+                        .fill(Color.echoMintGreen)
+                        .frame(width: 10, height: 10)
+                } else {
+                    // Empty dot for pending
+                    Circle()
+                        .stroke(Color.echoSurface, lineWidth: 1.5)
+                        .frame(width: 20, height: 20)
+                }
+            }
+            .animation(.spring(response: 0.4), value: currentStep)
+
+            // Step label
+            Text(step.emoji + " " + step.label)
+                .font(.system(size: 12, weight: isCurrent ? .semibold : .regular))
+                .foregroundColor(
+                    isCompleted ? .echoMintGreen :
+                    isCurrent ? .echoTextPrimary :
+                    .echoTextTertiary
+                )
                 .animation(.easeInOut(duration: 0.3), value: currentStep)
 
-            // Progress dots
-            HStack(spacing: 6) {
-                ForEach(0..<4, id: \.self) { i in
-                    Circle()
-                        .fill(i <= currentStep.rawValue ? Color.echoMintGreen : Color.echoSurface)
-                        .frame(width: 6, height: 6)
-                        .animation(.easeInOut(duration: 0.3), value: currentStep)
-                }
-            }
-
             Spacer()
+
+            // Spinning indicator for current step
+            if isCurrent {
+                ProgressView()
+                    .tint(.echoMintGreen)
+                    .scaleEffect(0.6)
+            }
         }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 6)
+        .background(
+            isCurrent ?
+                Color.echoMintGreen.opacity(0.08) :
+                Color.clear
+        )
+        .cornerRadius(8)
     }
 
     // MARK: - Result View
@@ -213,6 +294,7 @@ struct GeneratingView: View {
             .buttonStyle(.plain)
             .padding(.top, 4)
         }
+        .transition(.opacity.combined(with: .scale(scale: 0.95)))
     }
 
     // MARK: - Error View
@@ -321,18 +403,33 @@ struct GeneratingView: View {
             let updatePayload = UpdateDreamPayload(status: "completed")
             _ = try await api.updateDream(id: dream.id, payload: updatePayload)
 
-            // Done!
-            currentStep = .done
-            result = DreamResult(
-                title: autofill.suggestedTitle,
-                mood: autofill.suggestedMood,
-                tags: autofill.suggestedTags,
-                imageUrl: imageResult.aiImageUrl
-            )
+            // Done! Show result to user immediately
+            withAnimation(.spring(response: 0.5)) {
+                currentStep = .done
+                result = DreamResult(
+                    title: autofill.suggestedTitle,
+                    mood: autofill.suggestedMood,
+                    tags: autofill.suggestedTags,
+                    imageUrl: imageResult.aiImageUrl
+                )
+            }
+
+            // Fire-and-forget: silently trigger dream analysis in background
+            let dreamId = dream.id
+            Task.detached {
+                do {
+                    _ = try await APIClient.shared.analyzeDream(dreamId: dreamId)
+                    print("[GeneratingView] Dream analysis triggered successfully")
+                } catch {
+                    print("[GeneratingView] Dream analysis failed (non-fatal): \(error.localizedDescription)")
+                }
+            }
 
         } catch let apiError as APIError {
+            WKInterfaceDevice.current().play(.failure)
             error = apiError.localizedDescription
         } catch {
+            WKInterfaceDevice.current().play(.failure)
             self.error = error.localizedDescription
         }
     }
