@@ -2,33 +2,9 @@
   "images" : [
     {
       "filename" : "icon-1024.png",
-      "idiom" : "watch-marketing",
-      "scale" : "1x",
+      "idiom" : "universal",
+      "platform" : "watchOS",
       "size" : "1024x1024"
-    },
-    {
-      "filename" : "icon-1024 1.png",
-      "idiom" : "watch",
-      "scale" : "2x",
-      "size" : "40x40"
-    },
-    {
-      "filename" : "icon-1024 2.png",
-      "idiom" : "watch",
-      "scale" : "2x",
-      "size" : "44x44"
-    },
-    {
-      "filename" : "icon-1024 3.png",
-      "idiom" : "watch",
-      "scale" : "2x",
-      "size" : "46x46"
-    },
-    {
-      "filename" : "icon-1024 4.png",
-      "idiom" : "watch",
-      "scale" : "2x",
-      "size" : "50x50"
     }
   ],
   "info" : {

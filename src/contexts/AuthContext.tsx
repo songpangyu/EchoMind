@@ -1,6 +1,35 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { clearTokens, getAccessToken, getMe, login as apiLogin, logout as apiLogout, register as apiRegister, UserProfile } from '../api/auth';
+import { NativeModules, Platform } from 'react-native';
+import { clearTokens, getAccessToken, getRefreshToken, getMe, login as apiLogin, logout as apiLogout, register as apiRegister, UserProfile } from '../api/auth';
 import { UnauthenticatedError } from '../api/client';
+
+// Native bridge for syncing JWT tokens to Apple Watch
+const { WatchTokenBridge } = NativeModules;
+
+/** Push current tokens to the paired Apple Watch (no-op on Android) */
+const syncTokensToWatch = async () => {
+  if (Platform.OS !== 'ios' || !WatchTokenBridge) return;
+  try {
+    const accessToken = await getAccessToken();
+    const refreshToken = await getRefreshToken();
+    if (accessToken && refreshToken) {
+      WatchTokenBridge.syncTokens(accessToken, refreshToken);
+    }
+  } catch (e) {
+    // Non-critical — Watch sync failure should never block the app
+    console.log('[AuthContext] Watch token sync failed:', e);
+  }
+};
+
+/** Tell the paired Apple Watch to clear its stored tokens */
+const clearWatchTokens = () => {
+  if (Platform.OS !== 'ios' || !WatchTokenBridge) return;
+  try {
+    WatchTokenBridge.clearTokens();
+  } catch (e) {
+    console.log('[AuthContext] Watch token clear failed:', e);
+  }
+};
 
 interface AuthContextValue {
   user: UserProfile | null;
@@ -27,6 +56,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (token) {
           const profile = await getMe();
           setUser(profile);
+          // Sync tokens to Apple Watch on app launch
+          syncTokensToWatch();
         }
       } catch (e) {
         // UnauthenticatedError = no valid token / expired — totally normal, just stay on Login.
@@ -45,6 +76,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await apiLogin(identifier, password);
     const profile = await getMe();
     setUser(profile);
+    // Sync tokens to paired Apple Watch
+    syncTokensToWatch();
   }, []);
 
 
@@ -53,9 +86,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await apiRegister(username, password, displayName);
     const profile = await getMe();
     setUser(profile);
+    // Sync tokens to paired Apple Watch
+    syncTokensToWatch();
   }, []);
 
   const logout = useCallback(async () => {
+    // Clear tokens on Apple Watch before local cleanup
+    clearWatchTokens();
     await apiLogout();
     setUser(null);
   }, []);
