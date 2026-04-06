@@ -8,7 +8,10 @@ import {
     Image,
     Animated,
     ActivityIndicator,
+    Modal,
+    Dimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { GlassCard } from '../components/GlassCard';
@@ -134,12 +137,14 @@ const AnalysisLoadingSkeleton = () => {
 export const DreamDetailScreen: React.FC = () => {
     const navigation = useNavigation<NavProp>();
     const route = useRoute<DreamDetailRoute>();
+    const insets = useSafeAreaInsets();
     const [perspective, setPerspective] = useState<Perspective>('life');
     const [dream, setDream] = useState<Dream | null>(null);
     const [loading, setLoading] = useState(true);
     const [analysisLoading, setAnalysisLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [updatingFavorite, setUpdatingFavorite] = useState(false);
+    const [showFullImage, setShowFullImage] = useState(false);
     // Toast
     const [toastMsg, setToastMsg] = useState('');
     const toastAnim = useRef(new Animated.Value(0)).current;
@@ -268,22 +273,24 @@ export const DreamDetailScreen: React.FC = () => {
                 <FloatingParticles />
                 <ScrollView showsVerticalScrollIndicator={false}>
 
-                    {/* ── Hero image ── */}
+                    {/* ── Hero image (edge-to-edge, bleeds behind status bar) ── */}
                     <View style={styles.heroWrapper}>
                         {dream.aiImageUrl ? (
-                            <Image source={{ uri: dream.aiImageUrl }} style={styles.heroImage} resizeMode="cover" />
+                            <TouchableOpacity activeOpacity={0.9} onPress={() => setShowFullImage(true)}>
+                                <Image source={{ uri: dream.aiImageUrl }} style={[styles.heroImage, { height: 260 + insets.top }]} resizeMode="cover" />
+                            </TouchableOpacity>
                         ) : (
-                            <View style={[styles.heroImage, styles.heroPlaceholder]}>
+                            <View style={[styles.heroImage, styles.heroPlaceholder, { height: 260 + insets.top, paddingTop: insets.top }]}>
                                 <Icon name="image" size={42} color={colors.textTertiary} />
                                 <Text style={styles.heroPlaceholderText}>No generated image yet</Text>
                             </View>
                         )}
                         {/* Back button */}
-                        <TouchableOpacity style={styles.backBtn} onPress={goHome}>
+                        <TouchableOpacity style={[styles.backBtn, { top: insets.top + 8 }]} onPress={goHome}>
                             <Text style={styles.backBtnText}>‹</Text>
                         </TouchableOpacity>
                         {/* Star button */}
-                        <TouchableOpacity style={styles.starBtn} onPress={toggleStar} activeOpacity={0.8}>
+                        <TouchableOpacity style={[styles.starBtn, { top: insets.top + 8 }]} onPress={toggleStar} activeOpacity={0.8}>
                             <Icon
                                 name={dream.isFavorited ? 'star-fill' : 'star'}
                                 size={22}
@@ -466,6 +473,26 @@ export const DreamDetailScreen: React.FC = () => {
                     </Animated.View>
                 )}
             </View >
+
+            {/* Fullscreen image viewer */}
+            {dream.aiImageUrl && (
+                <Modal visible={showFullImage} transparent animationType="fade" statusBarTranslucent>
+                    <TouchableOpacity
+                        style={styles.fullImageBackdrop}
+                        activeOpacity={1}
+                        onPress={() => setShowFullImage(false)}
+                    >
+                        <Image
+                            source={{ uri: dream.aiImageUrl }}
+                            style={styles.fullImage}
+                            resizeMode="contain"
+                        />
+                        <TouchableOpacity style={[styles.fullImageClose, { top: insets.top + 12 }]} onPress={() => setShowFullImage(false)}>
+                            <Text style={styles.fullImageCloseText}>✕</Text>
+                        </TouchableOpacity>
+                    </TouchableOpacity>
+                </Modal>
+            )}
         </ScreenWrapper>
     );
 };
@@ -507,8 +534,8 @@ const styles = StyleSheet.create({
     },
 
     // Hero
-    heroWrapper: { position: 'relative', height: 260 },
-    heroImage: { width: '100%', height: '100%' },
+    heroWrapper: { position: 'relative' },
+    heroImage: { width: '100%' },
     heroPlaceholder: {
         backgroundColor: colors.surface,
         alignItems: 'center',
@@ -520,7 +547,7 @@ const styles = StyleSheet.create({
         color: colors.textTertiary,
     },
     backBtn: {
-        position: 'absolute', top: 48, left: 16,
+        position: 'absolute', left: 16,
         width: 40, height: 40, borderRadius: 20,
         backgroundColor: 'rgba(15,31,31,0.7)',
         alignItems: 'center', justifyContent: 'center',
@@ -619,7 +646,7 @@ const styles = StyleSheet.create({
 
     // Star button overlay
     starBtn: {
-        position: 'absolute', top: 48, right: 16,
+        position: 'absolute', right: 16,
         width: 40, height: 40, borderRadius: 20,
         backgroundColor: 'rgba(15,31,31,0.7)',
         alignItems: 'center', justifyContent: 'center',
@@ -678,5 +705,32 @@ const styles = StyleSheet.create({
         marginLeft: 'auto', ...typography.small, color: colors.mintGreen,
         fontWeight: '600', backgroundColor: 'rgba(181,217,168,0.1)',
         borderRadius: borderRadius.sm, paddingHorizontal: spacing.sm, paddingVertical: 2,
+    },
+
+    // Fullscreen image viewer
+    fullImageBackdrop: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.95)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    fullImage: {
+        width: Dimensions.get('window').width,
+        height: Dimensions.get('window').height * 0.75,
+    },
+    fullImageClose: {
+        position: 'absolute',
+        right: 16,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: 'rgba(255,255,255,0.15)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    fullImageCloseText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: '600',
     },
 });

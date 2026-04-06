@@ -685,16 +685,9 @@ export const JournalScreen: React.FC = () => {
           </View>
         </GlassCard>
 
-        {(loading || errorMessage) && (
+        {errorMessage && (
           <GlassCard style={styles.statusCard}>
-            {loading ? (
-              <View style={styles.statusRow}>
-                <ActivityIndicator size="small" color={colors.mintGreen} />
-                <Text style={styles.statusText}>Loading dreams...</Text>
-              </View>
-            ) : (
-              <Text style={styles.statusErrorText}>{errorMessage}</Text>
-            )}
+            <Text style={styles.statusErrorText}>{errorMessage}</Text>
           </GlassCard>
         )}
 
