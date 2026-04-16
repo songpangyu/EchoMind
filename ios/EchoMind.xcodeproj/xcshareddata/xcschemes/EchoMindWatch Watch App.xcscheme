@@ -58,18 +58,18 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-            BuildableName = "EchoMind.app"
-            BlueprintName = "EchoMind"
+            BlueprintIdentifier = "4447DBEA2F82ED170094BB8B"
+            BuildableName = "EchoMindWatch Watch App.app"
+            BlueprintName = "EchoMindWatch Watch App"
             ReferencedContainer = "container:EchoMind.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "4447DBEA2F82ED170094BB8B"
-            BuildableName = "EchoMindWatch Watch App.app"
-            BlueprintName = "EchoMindWatch Watch App"
+            BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
+            BuildableName = "EchoMind.app"
+            BlueprintName = "EchoMind"
             ReferencedContainer = "container:EchoMind.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
